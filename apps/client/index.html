@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101a1c" />
+    <title>Browser FPS · Комната</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="app">
+      <div id="scene" aria-label="Трёхмерная сцена комнаты"></div>
+      <header>
+        <a class="brand" href="/">BROWSER FPS<span>ПРОТОТИП / 05</span></a
+        ><span class="status" id="status" role="status">Не подключён</span>
+      </header>
+      <main>
+        <section class="panel" aria-labelledby="title">
+          <p class="eyebrow">ВЫБЕРИ ПОЗИЦИЮ. ДЕРЖИ ОБОРОНУ.</p>
+          <h1 id="title">Ещё одна<br />волна.</h1>
+          <p class="intro">
+            Создай комнату и отправь ссылку друзьям. До восьми игроков, без
+            регистрации.
+          </p>
+          <form id="join-form">
+            <button id="quick-play" type="button" disabled>
+              В бой · оборона
+            </button>
+            <label for="nickname">Твой ник</label>
+            <input
+              id="nickname"
+              name="nickname"
+              maxlength="20"
+              required
+              autocomplete="nickname"
+              placeholder="Например, Pilot"
+            />
+            <button id="join" type="submit">
+              Создать комнату <span aria-hidden="true">↗</span>
+            </button>
+          </form>
+          <div id="session" hidden>
+            <label for="map-select">Карта</label>
+            <select id="map-select">
+              <option value="bastion">Bastion · городской квартал</option>
+              <option value="sandgate">
+                Sandgate · пустынный квартал A / B
+              </option>
+              <option value="switchyard">Switchyard · полигон и паркур</option>
+            </select>
+            <p id="map-description"></p>
+            <label for="mode-select">Режим игры</label>
+            <select id="mode-select">
+              <option value="arena">Арена · с друзьями</option>
+              <option value="training">Полигон · испытание на 30 секунд</option>
+              <option value="waves">Волны · оборона с ботами</option>
+              <option value="bots">Боты · свободный бой</option>
+              <option value="parkour">Паркур · гонка на время</option>
+            </select>
+            <small id="mode-owner"></small>
+            <p id="mode-description"></p>
+            <div id="bot-settings" hidden>
+              <label id="bot-count-label" for="bot-count">Соперники</label>
+              <select id="bot-count">
+                <option value="1">1 бот</option>
+                <option value="2">2 бота</option>
+                <option value="3">3 бота</option>
+                <option value="4">4 бота</option>
+                <option value="5">5 ботов</option>
+              </select>
+              <label for="bot-difficulty">Сложность</label>
+              <select id="bot-difficulty">
+                <option value="easy">Лёгкая</option>
+                <option value="normal">Обычная</option>
+                <option value="hard">Сложная</option>
+              </select>
+            </div>
+            <div id="ally-settings" hidden>
+              <label for="ally-count">Союзные боты</label>
+              <select id="ally-count">
+                <option value="0">Без союзников</option>
+                <option value="1">1 союзник</option>
+                <option value="2">2 союзника</option>
+                <option value="3">3 союзника</option>
+              </select>
+            </div>
+            <label for="weapon-select">Класс / оружие</label>
+            <select id="weapon-select">
+              <option value="rifle">Автомат · 100 HP</option>
+              <option value="sniper">Снайперка · 90 HP</option>
+              <option value="shotgun">Дробовик · 110 HP</option>
+              <option value="smg">ПП «Вектор» · 100 HP · быстрый</option>
+              <option value="revolver">Револьвер · 100 HP · точный</option>
+            </select>
+            <div id="challenge-actions" hidden>
+              <button id="start-challenge" type="button">
+                Начать испытание
+              </button>
+              <button id="cancel-challenge" class="secondary" type="button">
+                Завершить попытку
+              </button>
+              <p id="record-summary"></p>
+              <small
+                >Рекорды хранятся в этом браузере отдельно для каждого класса.
+                Реакция — от появления цели до попадания, с учётом задержки
+                сети.</small
+              >
+            </div>
+            <p id="weapon-description"></p>
+            <button id="restart-waves" type="button" hidden>Ещё попытка</button>
+            <button id="ready" type="button">Готов к матчу</button>
+            <button id="scores" class="secondary" type="button">
+              Таблица результатов
+            </button>
+            <button id="play" type="button" disabled>Выйти на арену</button>
+            <p class="room-label">КОМНАТА <strong id="room-id"></strong></p>
+            <label for="invite">Ссылка для друзей</label>
+            <div class="invite-row">
+              <input id="invite" readonly /><button
+                id="copy"
+                type="button"
+                aria-label="Скопировать ссылку"
+              >
+                Копировать
+              </button>
+            </div>
+            <button class="secondary" id="leave" type="button">
+              Выйти из комнаты
+            </button>
+            <label class="sensitivity-label" for="volume">Громкость</label>
+            <input
+              id="volume"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="35"
+            />
+            <label class="sensitivity-label" for="sensitivity"
+              >Чувствительность мыши
+              <output id="sensitivity-value">2.0</output></label
+            >
+            <input
+              id="sensitivity"
+              type="range"
+              min="0.5"
+              max="6"
+              step="0.1"
+              value="2"
+            />
+          </div>
+          <p id="message" role="status"></p>
+          <p class="stage-note">
+            WASD · движение. Мышь · обзор. Space · прыжок. Shift / Ctrl / C ·
+            приседание и скольжение на бегу. Прыгай из скольжения, чтобы
+            сохранить скорость. ЛКМ · огонь. ПКМ / Q · прицел. R · перезарядка.
+            1 / 2 / E · сменить оружие. V · нож. Tab · счёт. F · новая попытка
+            испытания. M · миникарта. Esc · меню. Арена начинается с двух
+            игроков. Для волн и боя с ботами достаточно одного.
+          </p>
+        </section>
+        <aside class="roster" aria-label="Игроки в комнате">
+          <div class="roster-heading">
+            <h2>В комнате</h2>
+            <span id="player-count">0 / 8</span>
+          </div>
+          <ul id="players"></ul>
+          <p id="empty-roster">Здесь появятся участники</p>
+        </aside>
+      </main>
+      <footer>
+        <span id="map-name">BASTION / ГОРОДСКОЙ КВАРТАЛ</span
+        ><span>DESKTOP · KEYBOARD & MOUSE</span>
+      </footer>
+      <div id="match-time" role="status"></div>
+      <div id="network-banner" hidden role="status">
+        Связь прервана. Переподключаемся…
+      </div>
+      <section id="scoreboard" hidden aria-label="Таблица результатов">
+        <h2 id="score-title">Таблица</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Игрок</th>
+              <th>Класс</th>
+              <th>Убийства</th>
+              <th>Смерти</th>
+            </tr>
+          </thead>
+          <tbody id="score-rows"></tbody>
+        </table>
+        <button id="close-scores" class="secondary" type="button">
+          Закрыть
+        </button>
+      </section>
+      <div id="movement-hud" hidden>
+        <div id="location-name"></div>
+        <section id="wave-hud" hidden aria-label="Оборона">
+          <div>
+            <span>ОПЕРАЦИЯ / ОБОРОНА</span
+            ><strong id="wave-number">ВОЛНА 1</strong>
+          </div>
+          <p id="wave-state"></p>
+          <div class="wave-progress"><i id="wave-progress-fill"></i></div>
+          <small id="wave-team"></small>
+        </section>
+        <div id="kill-confirm" hidden></div>
+        <div id="damage-number" hidden></div>
+        <div id="supply-notice" hidden></div>
+        <div id="damage-direction" hidden>▲</div>
+        <section id="minimap" aria-label="Миникарта">
+          <div>
+            <strong id="minimap-name">BASTION</strong
+            ><span id="minimap-level">УЛИЦА</span>
+          </div>
+          <canvas
+            id="minimap-canvas"
+            width="384"
+            height="384"
+            aria-label="План карты и направление взгляда"
+          ></canvas
+          ><small>▲ ТЫ · <span>● ВЫСТРЕЛЫ</span> · ■ ПАТРОНЫ · M</small>
+        </section>
+        <section id="solo-hud" hidden aria-label="Испытание">
+          <strong id="solo-title"></strong><span id="solo-details"></span
+          ><small id="solo-best"></small>
+        </section>
+        <div id="scope" hidden aria-label="Оптический прицел">
+          <div class="scope-ring"></div>
+          <div class="scope-dot"></div>
+          <span class="scope-label">ОПТИКА · Q / ПКМ</span>
+        </div>
+        <div id="hurt" hidden></div>
+        <div id="practice-hit" hidden role="status"></div>
+        <div id="hitmarker" hidden>×</div>
+        <div id="kill-feed" aria-live="polite"></div>
+        <div id="death-message" hidden></div>
+        <div id="protection"></div>
+        <div class="combat-readout">
+          <span class="hud-label">СОСТОЯНИЕ</span
+          ><strong id="health">100 HP</strong>
+          <div class="health-track"><i id="health-fill"></i></div>
+          <span id="personal-score"></span>
+        </div>
+        <div class="ammo-readout">
+          <span class="hud-label">СНАРЯЖЕНИЕ</span><span id="weapon-name"></span
+          ><small id="weapon-slots"></small><strong id="ammo"></strong
+          ><span id="ammo-reserve"></span>
+          <div class="reload-track"><i id="reload-fill"></i></div>
+        </div>
+        <div id="crosshair" class="crosshair" aria-hidden="true">+</div>
+        <div class="movement-readout">
+          <strong id="speed">0.0</strong> м/с <span id="stance">На земле</span>
+        </div>
+        <div class="controls-hint">
+          WASD · ходьба &nbsp; SPACE · прыжок &nbsp; SHIFT · скольжение &nbsp; 1
+          / 2 · оружие &nbsp; ЛКМ · огонь &nbsp; Q / ПКМ · прицел &nbsp; R ·
+          перезарядка &nbsp; ESC · меню
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "browser-fps",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24.20.0 <25"
+  },
+  "scripts": {
+    "dev": "pnpm build:packages && concurrently --kill-others -n protocol,core,server,client -c magenta,cyan,yellow,green \"pnpm --filter @fps/protocol dev\" \"pnpm --filter @fps/game-core dev\" \"pnpm --filter @fps/server dev\" \"pnpm --filter @fps/client dev\"",
+    "build:packages": "pnpm --filter './packages/*' -r build",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck && tsc --noEmit -p tsconfig.tools.json",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "pnpm build:packages && vitest run",
+    "test:e2e": "pnpm build && playwright test",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "start": "pnpm --filter @fps/server start"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.13.3",
+    "concurrently": "9.2.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "16.5.0",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "5.0.0"
+  }
+}

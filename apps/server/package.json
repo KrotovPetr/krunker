@@ -1,0 +1,26 @@
+{
+  "name": "@fps/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --include '../../packages/*/dist/**/*.js' src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@fps/game-core": "workspace:*",
+    "@fps/protocol": "workspace:*",
+    "@colyseus/core": "0.18.10",
+    "@colyseus/schema": "5.0.27",
+    "@colyseus/ws-transport": "0.18.2",
+    "express": "5.1.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "0.18.2",
+    "@types/express": "5.0.6",
+    "tsx": "4.23.13"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@fps/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fps/game-core": "workspace:*",
+    "@fps/protocol": "workspace:*",
+    "@colyseus/sdk": "0.18.2",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.185.4",
+    "vite": "8.2.2"
+  }
+}
