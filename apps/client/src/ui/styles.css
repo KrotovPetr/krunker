@@ -719,10 +719,51 @@ tr.self {
   }
 }
 
-#weapon-description {
-  color: #a9bfb9;
-  font-size: 11px;
+#class-card {
+  margin: 14px 0 20px;
+  padding: 18px;
+  background: #142b2df2;
+  border: 1px solid #e5ae7b70;
+  border-left: 4px solid #e5ae7b;
+  border-radius: 8px;
+}
+.class-eyebrow {
+  color: #e5ae7b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+#class-name {
+  font-size: 26px;
+  margin: 6px 0 10px;
+}
+#weapon-description,
+#class-tradeoff {
+  color: #eff4ed;
+  font-size: 14px;
   line-height: 1.5;
+  margin: 0 0 10px;
+}
+#class-tradeoff {
+  color: #efbd91;
+}
+.class-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border-top: 1px solid #90b5aa40;
+  padding-top: 14px;
+  margin: 14px 0 0;
+}
+.class-stats dt {
+  color: #b3c9c5;
+  font-size: 11px;
+}
+.class-stats dd {
+  color: #eff4ed;
+  font-size: 16px;
+  font-weight: 650;
+  margin: 4px 0 0;
 }
 .combat-readout,
 .ammo-readout {

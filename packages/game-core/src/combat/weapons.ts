@@ -18,8 +18,29 @@ export interface WeaponConfig {
   aimedSpread: number;
   aimSeconds: number;
   recoil: number;
+  bloomPerShot?: number;
+  maxBloom?: number;
 }
 export const WEAPONS: Record<WeaponId, WeaponConfig> = {
+  lmg: {
+    name: 'Пулемёт «Титан»',
+    health: 100,
+    speed: 0.6,
+    magazine: 100,
+    damage: 16,
+    headMultiplier: 1.5,
+    interval: 1 / 12,
+    reload: 6,
+    range: 100,
+    pellets: 1,
+    spread: 0.007,
+    aimedSpread: 0.0015,
+    aimSeconds: 0.28,
+    recoil: 0.005,
+    automatic: true,
+    bloomPerShot: 0.002,
+    maxBloom: 0.004,
+  },
   smg: {
     name: 'ПП «Вектор»',
     health: 100,
@@ -141,6 +162,7 @@ export const CLASS_NAMES: Record<WeaponId, string> = {
   sniper: 'Снайпер',
   shotgun: 'Тяжёлый боец',
   revolver: 'Стрелок',
+  lmg: 'Пулемётчик',
 };
 export function reserveAmmo(
   player: Pick<PlayerSnapshot, 'slot' | 'reserveAmmo' | 'secondaryReserve'>,

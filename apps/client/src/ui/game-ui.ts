@@ -6,12 +6,46 @@ import {
   equippedWeapon,
   magazineAmmo,
   getMap,
+  MOVEMENT,
 } from '@fps/game-core';
-import type { GameSnapshot, PlayerSnapshot, ServerEvent } from '@fps/protocol';
+import type {
+  GameSnapshot,
+  PlayerSnapshot,
+  ServerEvent,
+  WeaponId,
+} from '@fps/protocol';
+
+const CLASS_DESCRIPTIONS: Record<WeaponId, [string, string]> = {
+  rifle: [
+    'Универсальный боец для средней дистанции. Автомат хорош для коротких очередей и смены позиций.',
+    'При долгом зажатии растёт разброс.',
+  ],
+  smg: [
+    'Самый быстрый класс. Обходи противника и сближайся: ПП выпускает быстрые очереди.',
+    'На дальней дистанции урон и точность снижаются.',
+  ],
+  sniper: [
+    'Контроль дальних проходов и мощные одиночные выстрелы. Оптика на Q / ПКМ; от бедра тоже точно в перекрестие.',
+    'Меньше здоровья, медленный темп и всего 5 патронов.',
+  ],
+  shotgun: [
+    'Ближний бой: один выстрел выпускает 8 дробин. Заходи с фланга и используй узкие проходы.',
+    'На дистанции дробь рассеивается и быстро теряет урон.',
+  ],
+  revolver: [
+    'Точные одиночные выстрелы с высоким уроном. Подходит для быстрых выходов из укрытия.',
+    'Всего 6 патронов: промахи оставляют противнику время для ответа.',
+  ],
+  lmg: [
+    'Прикрытие и удержание проходов. Быстрый огонь, 100 патронов и небольшой разброс даже длинной очередью.',
+    'На 40% медленнее штурмовика. Перезарядка 6 секунд: заранее выбирай укрытие.',
+  ],
+};
 
 const el = (id: string) => document.getElementById(id)!;
 export function createGameUI() {
   let scoreKey = '';
+  let displayedClass: WeaponId | undefined;
   let current: GameSnapshot | undefined;
   let local: PlayerSnapshot | undefined;
   let hitUntil = 0;
@@ -114,8 +148,27 @@ export function createGameUI() {
           local.reloadRemaining > 0
             ? `${100 * (1 - local.reloadRemaining / FIREARMS[equipped].reload)}%`
             : '0%';
-        el('weapon-description').textContent =
-          `${CLASS_NAMES[local.weapon]} · ${WEAPONS[local.weapon].health} HP · ${WEAPONS[local.weapon].speed.toFixed(2)}× скорость · ${WEAPONS[local.weapon].magazine} патронов · ${Math.round(60 / WEAPONS[local.weapon].interval)} выстр./мин · ${WEAPONS[local.weapon].damage} базовый урон`;
+        if (displayedClass !== local.weapon) {
+          displayedClass = local.weapon;
+          const config = WEAPONS[local.weapon];
+          el('class-name').textContent = CLASS_NAMES[local.weapon];
+          el('weapon-description').textContent =
+            CLASS_DESCRIPTIONS[local.weapon][0];
+          el('class-tradeoff').textContent =
+            CLASS_DESCRIPTIONS[local.weapon][1];
+          el('class-health').textContent = `${config.health} HP`;
+          el('class-speed').textContent =
+            `${(MOVEMENT.walkSpeed * config.speed).toFixed(1)} м/с`;
+          el('class-ammo').textContent =
+            `${config.magazine} + ${config.magazine * 3}`;
+          el('class-reload').textContent = `${config.reload} с`;
+          el('class-rate').textContent =
+            `${Math.round(60 / config.interval)} / мин`;
+          el('class-damage').textContent =
+            config.pellets > 1
+              ? `${config.damage} × ${config.pellets} дробин`
+              : String(config.damage);
+        }
         el('ammo').classList.toggle(
           'low-ammo',
           magazineAmmo(local) <= 3 && !local.reloadRemaining,

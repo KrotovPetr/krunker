@@ -81,7 +81,7 @@ export function createCharacter(bot: boolean) {
   body.add(gun);
   const receiver = box(gun, 0, 0, -0.12, 0.1, 0.12, 0.42, dark);
   const barrel = box(gun, 0, 0.02, -0.41, 0.035, 0.035, 0.24, armor);
-  box(gun, 0, -0.13, -0.1, 0.05, 0.2, 0.08, armor);
+  const magazine = box(gun, 0, -0.13, -0.1, 0.05, 0.2, 0.08, armor);
   const flashGeo = new THREE.OctahedronGeometry(0.085);
   geometries.push(flashGeo);
   const flashMaterial = new THREE.MeshBasicMaterial({ color: 0xffd98c });
@@ -156,6 +156,7 @@ export function createCharacter(bot: boolean) {
         sniper: 0x788061,
         shotgun: 0x955c52,
         revolver: 0x8c748a,
+        lmg: 0x7e8050,
       };
       cloth.color.setHex(enemy ? palette[player.weapon] : 0x507d8a);
       armor.color.setHex(enemy ? 0x5c4438 : 0x293f49);
@@ -163,9 +164,23 @@ export function createCharacter(bot: boolean) {
       torso.scale.x =
         player.weapon === 'shotgun' ? 1.1 : player.weapon === 'smg' ? 0.9 : 1;
       const short = player.slot === 'secondary' || player.weapon === 'revolver';
+      const machineGun = player.weapon === 'lmg' && !short;
+      receiver.scale.x = machineGun ? 1.5 : 1;
+      magazine.scale.set(
+        machineGun ? 3 : 1,
+        machineGun ? 1.2 : 1,
+        machineGun ? 2 : 1,
+      );
       receiver.scale.z = short ? 0.55 : player.weapon === 'smg' ? 0.8 : 1;
       barrel.scale.z =
-        player.weapon === 'sniper' && !short ? 1.7 : short ? 0.4 : 1;
+        player.weapon === 'sniper' && !short
+          ? 1.7
+          : machineGun
+            ? 1.5
+            : short
+              ? 0.4
+              : 1;
+      flash.position.z = -0.41 - 0.12 * barrel.scale.z;
       flash.visible = shotRemaining > 0 && !dead;
       shield.visible = player.protectionRemaining > 0 && !dead;
       shield.rotation.y += dt * 0.7;

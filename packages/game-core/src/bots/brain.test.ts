@@ -5,7 +5,9 @@ import {
   DEFAULT_CONFIG,
   initializePhysics,
   TEST_PAD,
+  predictPlayerMovement,
 } from '../index.js';
+import type { MapDefinition } from '../index.js';
 import { createBotBrain, createNavigation } from './brain.js';
 beforeAll(initializePhysics);
 it('needs a settled aim and reaction window before firing, and never snaps around', () => {
@@ -48,6 +50,129 @@ it('needs a settled aim and reaction window before firing, and never snaps aroun
     ).toBe(false);
   } finally {
     g.dispose();
+    world.dispose();
+  }
+});
+
+it('abandons a stalled destination and keeps it out of the next plan', () => {
+  const map: MapDefinition = {
+    ...TEST_PAD,
+    tacticalPositions: [
+      { id: 'north', role: 'advance', position: { x: 1, y: 0.04, z: -7 } },
+      { id: 'south', role: 'advance', position: { x: 1, y: 0.04, z: 7 } },
+      { id: 'east', role: 'advance', position: { x: 7, y: 0.04, z: 1 } },
+    ],
+  };
+  const game = createGame(DEFAULT_CONFIG, map, 0),
+    world = createCollisionWorld(map);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'P' });
+    game.step(1 / 60);
+    const p = game.snapshot().players[0]!;
+    Object.assign(p, { position: { x: 1, y: 0.04, z: 1 }, ready: true });
+    const brain = createBotBrain(0),
+      nav = createNavigation(map, world);
+    brain.update(p, [], world, nav, 'normal', 1 / 60, 0);
+    const first = brain.intent().goalId;
+    expect(first).toBe('north');
+    // Keep the actual position fixed, as when physics cannot execute a route.
+    for (let i = 1; i < 190; i++) {
+      const decision = brain.update(p, [], world, nav, 'normal', 1 / 60, i);
+      p.yaw = decision.input.yaw;
+      p.pitch = decision.input.pitch;
+    }
+    expect(brain.intent().goalId).toBeDefined();
+    expect(brain.intent().goalId).not.toBe(first);
+    for (let i = 190; i < 260; i++) {
+      const decision = brain.update(p, [], world, nav, 'normal', 1 / 60, i);
+      Object.assign(p, predictPlayerMovement(p, decision.input, 1 / 60, world));
+      expect(brain.intent().goalId).not.toBe(first);
+    }
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
+
+it('takes a different approach when a teammate has claimed a position', () => {
+  const map: MapDefinition = {
+    ...TEST_PAD,
+    tacticalPositions: [
+      { id: 'left', role: 'advance', position: { x: -5, y: 0.04, z: -5 } },
+      { id: 'right', role: 'advance', position: { x: 5, y: 0.04, z: -5 } },
+    ],
+  };
+  const game = createGame(DEFAULT_CONFIG, map, 0),
+    world = createCollisionWorld(map);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'P' });
+    game.step(1 / 60);
+    const p = game.snapshot().players[0]!;
+    Object.assign(p, { position: { x: 0, y: 0.04, z: 3 }, ready: true });
+    const nav = createNavigation(map, world),
+      first = createBotBrain(0),
+      second = createBotBrain(0);
+    first.update(p, [], world, nav, 'normal', 1 / 60, 0, { team: 'attackers' });
+    second.update(p, [], world, nav, 'normal', 1 / 60, 0, {
+      team: 'attackers',
+      occupied: [first.intent().destination!],
+    });
+    expect(first.intent().goalId).toBe('left');
+    expect(second.intent().goalId).toBe('right');
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
+
+it('seeks cover from a known threat when wounded and forgets it on respawn', () => {
+  const map: MapDefinition = {
+    ...TEST_PAD,
+    blocks: [
+      ...TEST_PAD.blocks,
+      {
+        id: 'cover',
+        shape: 'box',
+        yaw: 0,
+        color: 0,
+        position: { x: 0, y: 1.6, z: 0 },
+        size: { x: 6, y: 3.2, z: 0.5 },
+      },
+    ],
+    tacticalPositions: [
+      { id: 'shelter', role: 'guard', position: { x: 1, y: 0.04, z: 3 } },
+      { id: 'exposed', role: 'advance', position: { x: 1, y: 0.04, z: -3 } },
+    ],
+  };
+  const game = createGame(DEFAULT_CONFIG, map, 0),
+    world = createCollisionWorld(map);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'P' });
+    game.step(1 / 60);
+    const p = game.snapshot().players[0]!;
+    Object.assign(p, {
+      position: { x: 5, y: 0.04, z: -3 },
+      yaw: 0.8,
+      ready: true,
+      health: 20,
+    });
+    const target = {
+      ...structuredClone(p),
+      id: 'enemy',
+      health: 100,
+      position: { x: 1, y: 0.04, z: -7 },
+    };
+    const nav = createNavigation(map, world),
+      brain = createBotBrain(0);
+    const decision = brain.update(p, [target], world, nav, 'normal', 1 / 60, 0);
+    expect(brain.intent()).toMatchObject({ state: 'cover', goalId: 'shelter' });
+    expect(decision.fire).toBe(false);
+    p.lifeId++;
+    p.health = 100;
+    brain.update(p, [], world, nav, 'normal', 1 / 60, 1);
+    expect(brain.intent().state).toBe('patrol');
+  } finally {
+    game.dispose();
     world.dispose();
   }
 });

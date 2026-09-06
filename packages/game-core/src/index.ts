@@ -1,4 +1,9 @@
-import { emptyWave, waveSize, chooseEnemySpawn } from './waves/director.js';
+import {
+  emptyWave,
+  waveSize,
+  chooseEnemySpawn,
+  chooseRespawn,
+} from './waves/director.js';
 export { emptyWave } from './waves/director.js';
 import { getMap } from './maps/catalog.js';
 export { getMap, MAPS } from './maps/catalog.js';
@@ -209,24 +214,16 @@ export function createGame(
   const spawn = (player: PlayerSnapshot, initial = false, override?: Vec3) => {
     let point = map.spawns[slots.get(player.id) ?? 0]!;
     if (!initial) {
-      let best = -1;
-      for (let i = 0; i < map.spawns.length; i++) {
-        const candidate = map.spawns[(offset + i + round) % map.spawns.length]!;
-        const distances = [...players.values()]
-          .filter((p) => p.id !== player.id && p.health > 0 && p.ready)
-          .map((p) =>
-            Math.hypot(
-              candidate.x - p.position.x,
-              candidate.y - p.position.y,
-              candidate.z - p.position.z,
-            ),
-          );
-        const distance = Math.min(...distances);
-        if (distance > best) {
-          best = distance;
-          point = candidate;
-        }
-      }
+      const points = map.spawns.map(
+        (_, i) => map.spawns[(offset + i + round) % map.spawns.length]!,
+      );
+      point = chooseRespawn(
+        points,
+        [...players.values()].filter(
+          (p) => p.id !== player.id && p.health > 0 && p.ready && p.connected,
+        ),
+        collisions,
+      );
     }
     if (phase === 'waiting' && map.practice?.spawns.length) {
       point =
@@ -353,9 +350,13 @@ export function createGame(
         : mode === 'waves'
           ? waveSpawnSerial
           : Number(id.split(':')[1]);
-      player.weapon = (
-        ['rifle', 'smg', 'shotgun', 'revolver', 'sniper'] as const
-      )[index % 5]!;
+      const botWeapons = ally
+        ? (['rifle', 'smg', 'lmg'] as const)
+        : (['rifle', 'smg', 'shotgun', 'revolver', 'lmg', 'sniper'] as const);
+      // Five opponents cannot cover six classes at once. Rotate the roster
+      // deterministically per room so none of the classes becomes unreachable.
+      const rosterOffset = ally ? 0 : (seed >>> 0) % botWeapons.length;
+      player.weapon = botWeapons[(index + rosterOffset) % botWeapons.length]!;
       brains.set(player.id, createBotBrain(index));
     } else if (!hostId) hostId = player.id;
     players.set(id, player);
@@ -741,6 +742,7 @@ export function createGame(
               humans,
               bots,
               collisions,
+              map.defense?.concealedSpawns,
             );
             if (point) {
               const id = `wave:${wave.runId}:${++waveSpawnSerial}`;
@@ -757,6 +759,7 @@ export function createGame(
                   'shotgun',
                   'revolver',
                   'sniper',
+                  'lmg',
                 ] as const;
                 enemy.weapon =
                   weapons[
@@ -817,6 +820,25 @@ export function createGame(
             difficulty,
             delta,
             tick,
+            mode === 'waves'
+              ? {
+                  team: enemy(player) ? 'attackers' : 'defenders',
+                  occupied: [...players.values()].flatMap((p) => {
+                    if (
+                      p.id === player.id ||
+                      p.health <= 0 ||
+                      !p.ready ||
+                      !p.connected ||
+                      enemy(p) !== enemy(player)
+                    )
+                      return [];
+                    const destination = brains.get(p.id)?.intent().destination;
+                    return destination
+                      ? [p.position, destination]
+                      : [p.position];
+                  }),
+                }
+              : {},
           );
           input.queue = [decision.input];
           input.highest = decision.input.seq;
@@ -1029,8 +1051,13 @@ export function createGame(
           weapon,
           seed ^ tick ^ shooter.lastProcessedInput,
         );
-        if (weapon !== 'knife' && FIREARMS[weapon].automatic)
-          shooter.bloom = Math.min(0.026, shooter.bloom + 0.005);
+        if (weapon !== 'knife' && FIREARMS[weapon].automatic) {
+          const config = FIREARMS[weapon];
+          shooter.bloom = Math.min(
+            config.maxBloom ?? 0.026,
+            shooter.bloom + (config.bloomPerShot ?? 0.005),
+          );
+        }
         events.push({
           type: 'shot',
           playerId: shooter.id,

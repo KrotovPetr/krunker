@@ -192,3 +192,28 @@ it('links the rear streets around both rows of city buildings', () => {
     world.dispose();
   }
 });
+
+it('breaks the cross-hall spawn sightline and connects every wave gate to tactical positions', () => {
+  const world = createCollisionWorld(CITY);
+  try {
+    const nav = createNavigation(CITY, world);
+    expect(
+      visible(world, { x: 0, y: 1.8, z: 15 }, { x: 0, y: 1.8, z: -15 }),
+    ).toBe(false);
+    for (const gate of CITY.defense!.enemies) {
+      expect(world.canOccupy(gate, 1.8)).toBe(true);
+      for (const defender of CITY.defense!.players)
+        expect(
+          visible(
+            world,
+            { ...defender, y: defender.y + 1.65 },
+            { ...gate, y: gate.y + 1.65 },
+          ),
+        ).toBe(false);
+      for (const point of CITY.tacticalPositions!)
+        expect(nav.plan(gate, point.position), point.id).toBeDefined();
+    }
+  } finally {
+    world.dispose();
+  }
+});

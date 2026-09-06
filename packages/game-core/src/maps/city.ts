@@ -157,7 +157,9 @@ for (const side of [-1, 1]) {
     'stone',
   );
 }
-box('reception', 0, 0.65, -4.2, 4, 1.1, 1.1, 0x658e86, 'metal');
+box('reception', 0, 0.65, -5.7, 4, 1.1, 1.1, 0x658e86, 'metal');
+// Separate the archive from the lobby. Both side corridors remain connected.
+box('archive-partition', 0, 1.65, -3.5, 5.2, 3.1, 0.4, 0x9caca4);
 // External stair and a bridge onto the roof. Every step is a collision solid.
 for (let i = 0; i < 20; i++)
   box(
@@ -269,6 +271,17 @@ for (const side of [-1, 1]) {
     dark,
     'metal',
   );
+  box(
+    `roof-exit-screen-${side}`,
+    side * 5.8,
+    5.7,
+    -side * 5.7,
+    0.4,
+    1.8,
+    3.4,
+    dark,
+    'metal',
+  );
 }
 
 export const CITY: MapDefinition = withSupplyCrates({
@@ -288,6 +301,7 @@ export const CITY: MapDefinition = withSupplyCrates({
     { name: 'АРХИВ', x: 0, z: -16, radius: 13 },
   ],
   defense: {
+    concealedSpawns: true,
     players: [
       { x: 0, y: 0.16, z: 1 },
       { x: -2, y: 0.16, z: 1 },
@@ -295,14 +309,36 @@ export const CITY: MapDefinition = withSupplyCrates({
       { x: 0, y: 0.16, z: -1 },
     ],
     enemies: [
-      { x: -17.5, y: 0.03, z: -16 },
-      { x: 17.5, y: 0.03, z: -16 },
-      { x: -17.5, y: 0.03, z: 16 },
-      { x: 17.5, y: 0.03, z: 16 },
-      { x: 0, y: 0.16, z: -18 },
-      { x: 0, y: 0.16, z: 18 },
+      { x: -30, y: 0.03, z: -16 },
+      { x: 30, y: 0.03, z: -16 },
+      { x: -30, y: 0.03, z: 16 },
+      { x: 30, y: 0.03, z: 16 },
+      { x: -12, y: 0.03, z: -26 },
+      { x: 12, y: 0.03, z: 26 },
     ],
   },
+  tacticalPositions: [
+    { id: 'lobby', position: { x: 0, y: 0.16, z: 3 }, role: 'advance' },
+    { id: 'archive', position: { x: 3, y: 0.16, z: -5 }, role: 'advance' },
+    { id: 'west-hall', position: { x: -5, y: 0.16, z: 1 }, role: 'guard' },
+    { id: 'east-hall', position: { x: 5, y: 0.16, z: -1 }, role: 'guard' },
+    { id: 'cafe', position: { x: -19, y: 0.03, z: 9 }, role: 'flank' },
+    { id: 'service', position: { x: 19, y: 0.03, z: -9 }, role: 'flank' },
+    { id: 'west-stair', position: { x: -11, y: 0.16, z: -9 }, role: 'flank' },
+    { id: 'east-stair', position: { x: 11, y: 0.16, z: 9 }, role: 'flank' },
+    {
+      id: 'roof-east',
+      position: { x: 7.5, y: 4.83, z: -3 },
+      role: 'overwatch',
+    },
+    {
+      id: 'roof-west',
+      position: { x: -7.5, y: 4.83, z: 3 },
+      role: 'overwatch',
+    },
+    { id: 'square', position: { x: 3, y: 0.03, z: 13 }, role: 'guard' },
+    { id: 'north-street', position: { x: -3, y: 0.03, z: -13 }, role: 'guard' },
+  ],
   name: 'Bastion',
   supplies: [
     { x: -2, y: 0.65, z: 3 },
@@ -362,7 +398,7 @@ export const CITY: MapDefinition = withSupplyCrates({
     { x: 17.5, y: 0.03, z: -5 },
     { x: -16, y: 0.03, z: -16 },
     { x: 16, y: 0.03, z: 16 },
-    { x: -5.5, y: 4.83, z: 5.5 },
-    { x: 5.5, y: 4.83, z: -5.5 },
+    { x: -4.7, y: 4.83, z: 5.5 },
+    { x: 4.7, y: 4.83, z: -5.5 },
   ],
 });

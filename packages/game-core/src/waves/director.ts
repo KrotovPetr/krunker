@@ -21,6 +21,7 @@ export function chooseEnemySpawn(
   humans: PlayerSnapshot[],
   enemies: PlayerSnapshot[],
   world: CollisionWorld,
+  concealedOnly = false,
 ): Vec3 | undefined {
   let best: Vec3 | undefined,
     score = -Infinity;
@@ -46,10 +47,55 @@ export function chooseEnemySpawn(
         { ...point, y: point.y + 1.6 },
       ),
     );
+    if (concealedOnly && exposed) continue;
     const value = distance + (exposed ? 0 : 15);
     if (value > score) {
       score = value;
       best = point;
+    }
+  }
+  return best;
+}
+
+/** Respawn behind cover when possible; distance breaks ties within that tier. */
+export function chooseRespawn(
+  points: readonly Vec3[],
+  opponents: readonly PlayerSnapshot[],
+  world: CollisionWorld,
+): Vec3 {
+  let best = points[0]!;
+  let bestExposed = Infinity;
+  let bestDistance = -Infinity;
+  for (const point of points) {
+    const nearest = Math.min(
+      ...opponents.map((p) =>
+        Math.hypot(
+          point.x - p.position.x,
+          point.y - p.position.y,
+          point.z - p.position.z,
+        ),
+      ),
+    );
+    const exposed = opponents.reduce(
+      (count, p) =>
+        count +
+        Number(
+          visible(
+            world,
+            { ...p.position, y: p.position.y + 1.65 },
+            { ...point, y: point.y + 1.65 },
+          ),
+        ),
+      0,
+    );
+    if (nearest < 2) continue;
+    if (
+      exposed < bestExposed ||
+      (exposed === bestExposed && nearest > bestDistance)
+    ) {
+      best = point;
+      bestExposed = exposed;
+      bestDistance = nearest;
     }
   }
   return best;

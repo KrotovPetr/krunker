@@ -40,6 +40,51 @@
             </button>
           </form>
           <div id="session" hidden>
+            <label for="weapon-select">Класс / оружие</label>
+            <select id="weapon-select">
+              <option value="rifle">Штурмовик · Автомат</option>
+              <option value="sniper">Снайпер · Снайперка</option>
+              <option value="shotgun">Тяжёлый боец · Дробовик</option>
+              <option value="smg">Разведчик · ПП «Вектор»</option>
+              <option value="revolver">Стрелок · Револьвер</option>
+              <option value="lmg">Пулемётчик · Пулемёт «Титан»</option>
+            </select>
+            <section
+              id="class-card"
+              aria-labelledby="class-name"
+              aria-live="polite"
+            >
+              <span class="class-eyebrow">ТВОЙ КЛАСС</span>
+              <h2 id="class-name"></h2>
+              <p id="weapon-description"></p>
+              <p id="class-tradeoff"></p>
+              <dl class="class-stats">
+                <div>
+                  <dt>Здоровье</dt>
+                  <dd id="class-health"></dd>
+                </div>
+                <div>
+                  <dt>Скорость ходьбы</dt>
+                  <dd id="class-speed"></dd>
+                </div>
+                <div>
+                  <dt>Магазин + запас</dt>
+                  <dd id="class-ammo"></dd>
+                </div>
+                <div>
+                  <dt>Перезарядка</dt>
+                  <dd id="class-reload"></dd>
+                </div>
+                <div>
+                  <dt>Темп огня</dt>
+                  <dd id="class-rate"></dd>
+                </div>
+                <div>
+                  <dt>Урон в корпус</dt>
+                  <dd id="class-damage"></dd>
+                </div>
+              </dl>
+            </section>
             <label for="map-select">Карта</label>
             <select id="map-select">
               <option value="bastion">Bastion · городской квартал</option>
@@ -84,14 +129,6 @@
                 <option value="3">3 союзника</option>
               </select>
             </div>
-            <label for="weapon-select">Класс / оружие</label>
-            <select id="weapon-select">
-              <option value="rifle">Автомат · 100 HP</option>
-              <option value="sniper">Снайперка · 90 HP</option>
-              <option value="shotgun">Дробовик · 110 HP</option>
-              <option value="smg">ПП «Вектор» · 100 HP · быстрый</option>
-              <option value="revolver">Револьвер · 100 HP · точный</option>
-            </select>
             <div id="challenge-actions" hidden>
               <button id="start-challenge" type="button">
                 Начать испытание
@@ -106,7 +143,6 @@
                 сети.</small
               >
             </div>
-            <p id="weapon-description"></p>
             <button id="restart-waves" type="button" hidden>Ещё попытка</button>
             <button id="ready" type="button">Готов к матчу</button>
             <button id="scores" class="secondary" type="button">

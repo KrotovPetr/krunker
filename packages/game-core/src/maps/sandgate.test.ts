@@ -142,3 +142,34 @@ it('connects expanded rear streets and both approaches to the lookout terraces',
     world.dispose();
   }
 });
+
+it('breaks the tunnel sightline and limits each lookout to its own wave entrance', () => {
+  const world = createCollisionWorld(SANDGATE);
+  try {
+    const nav = createNavigation(SANDGATE, world);
+    expect(
+      visible(world, { x: -20, y: 1.65, z: 10 }, { x: -20, y: 1.65, z: -21 }),
+    ).toBe(false);
+    for (const side of [-1, 1]) {
+      const eye = { x: side * 30.8, y: 2.88, z: -17 };
+      const visibleGates = SANDGATE.defense!.enemies.filter((gate) =>
+        visible(world, eye, { ...gate, y: gate.y + 1.65 }),
+      );
+      expect(visibleGates).toHaveLength(1);
+      expect(Math.sign(visibleGates[0]!.x)).toBe(side);
+    }
+    for (const gate of SANDGATE.defense!.enemies)
+      for (const point of SANDGATE.tacticalPositions!)
+        expect(nav.plan(gate, point.position), point.id).toBeDefined();
+    // The old collision with the supply box at x=16,z=-23 is gone.
+    const movement = world.move(
+      { x: 17, y: 0.04, z: -23.2 },
+      1.8,
+      { x: -2, y: -0.04, z: 0 },
+      true,
+    );
+    expect(movement.movement.x).toBeLessThan(-1.9);
+  } finally {
+    world.dispose();
+  }
+});

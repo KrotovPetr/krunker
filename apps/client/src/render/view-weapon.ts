@@ -73,6 +73,12 @@ export function createViewWeapon(camera: THREE.Camera) {
   cylinder.position.set(0, -0.01, -0.17);
   root.add(cylinder);
   const rail = box([0.11, 0.018, 0.24], [0, 0.075, -0.23], dark);
+  const carryHandle = box([0.035, 0.055, 0.19], [0, 0.11, -0.21], dark);
+  const bipod = [-1, 1].map((side) => {
+    const leg = box([0.02, 0.16, 0.025], [side * 0.065, -0.07, -0.66], dark);
+    leg.rotation.z = side * 0.35;
+    return leg;
+  });
   const flash = new THREE.Mesh(
     new THREE.OctahedronGeometry(0.07),
     new THREE.MeshBasicMaterial({ color: 0xffca65 }),
@@ -149,27 +155,38 @@ export function createViewWeapon(camera: THREE.Camera) {
       blade.visible = knifeTime > 0;
       optic.visible = id === 'sniper' && knifeTime === 0;
       const handgun = id === 'pistol' || id === 'revolver';
+      const machineGun = id === 'lmg';
+      carryHandle.visible = machineGun && knifeTime === 0;
+      for (const leg of bipod) leg.visible = machineGun && knifeTime === 0;
       cylinder.visible = id === 'revolver' && knifeTime === 0;
       cylinder.rotation.z = reload * Math.PI * 4;
       rail.visible = id === 'smg' && knifeTime === 0;
       receiver.scale.set(
-        id === 'shotgun' ? 1.3 : 1,
-        1,
+        machineGun ? 1.45 : id === 'shotgun' ? 1.3 : 1,
+        machineGun ? 1.2 : 1,
         handgun ? 0.45 : id === 'smg' ? 0.72 : 1,
       );
+      barrel.scale.set(machineGun ? 1.6 : 1, machineGun ? 1.6 : 1, 1);
       barrel.scale.z =
         id === 'sniper'
           ? 1.4
-          : id === 'revolver'
-            ? 0.6
-            : id === 'pistol'
-              ? 0.25
-              : id === 'smg'
-                ? 0.65
-                : 1;
+          : machineGun
+            ? 1.3
+            : id === 'revolver'
+              ? 0.6
+              : id === 'pistol'
+                ? 0.25
+                : id === 'smg'
+                  ? 0.65
+                  : 1;
       barrel.position.z = handgun ? -0.33 : id === 'smg' ? -0.44 : -0.57;
       stock.visible &&= !handgun;
       magazine.visible &&= id !== 'revolver';
+      magazine.scale.set(
+        machineGun ? 2.8 : 1,
+        machineGun ? 1.25 : 1,
+        machineGun ? 1.9 : 1,
+      );
       frontSight.position.z = handgun ? -0.35 : id === 'smg' ? -0.45 : -0.56;
       magazine.position.y = -0.14 - reload * 0.2;
       bolt.position.z = -0.14 + kick * 0.6;

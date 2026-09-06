@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export const PROTOCOL_VERSION = 10;
+// Static map collisions changed; clients with the previous maps must reload.
+export const PROTOCOL_VERSION = 12;
 export const ROOM_TYPE = 'arena';
 export const MAX_PLAYERS = 8;
 export const TICK_RATE = 60;
@@ -43,6 +44,7 @@ export const weaponSchema = z.enum([
   'shotgun',
   'smg',
   'revolver',
+  'lmg',
 ]);
 export type WeaponId = z.infer<typeof weaponSchema>;
 const sequence = z.number().int().min(0).max(0xffffffff);

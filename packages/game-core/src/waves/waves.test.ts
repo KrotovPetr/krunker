@@ -10,7 +10,7 @@ import {
 } from '../index.js';
 import type { Game, GameConfig, MapDefinition } from '../index.js';
 import type { ClientCommand, GameEvent } from '@fps/protocol';
-import { chooseEnemySpawn } from './director.js';
+import { chooseEnemySpawn, chooseRespawn } from './director.js';
 
 beforeAll(initializePhysics);
 const games: Game[] = [];
@@ -51,6 +51,43 @@ const step = (g: Game, count = 1) => {
   return out;
 };
 const human = (g: Game) => g.snapshot().players.find((p) => p.id === 'human')!;
+
+it('prefers a concealed respawn to a farther visible one and waits for a hidden wave entrance', () => {
+  const map: MapDefinition = {
+    ...pad,
+    blocks: [
+      ...pad.blocks,
+      {
+        id: 'wall',
+        shape: 'box',
+        yaw: 0,
+        color: 0,
+        position: { x: 3, y: 2, z: 0 },
+        size: { x: 1, y: 4, z: 8 },
+      },
+    ],
+  };
+  const game = createGame(DEFAULT_CONFIG, map, 0),
+    world = createCollisionWorld(map);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'P' });
+    game.step(1 / 60);
+    const enemy = game.snapshot().players[0]!;
+    enemy.position = { x: 0, y: 0.03, z: 0 };
+    const hidden = { x: 6, y: 0.03, z: 0 },
+      exposed = { x: 0, y: 0.03, z: 18 };
+    expect(chooseRespawn([exposed, hidden], [enemy], world)).toEqual(hidden);
+    expect(
+      chooseEnemySpawn([exposed], [enemy], [], world, true),
+    ).toBeUndefined();
+    expect(chooseEnemySpawn([exposed], [enemy], [], world, false)).toEqual(
+      exposed,
+    );
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
 function setup(config: Partial<GameConfig> = {}, map = pad) {
   const g = createGame(
     {

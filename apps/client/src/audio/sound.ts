@@ -135,15 +135,23 @@ export function createSound() {
         ? 2400
         : weapon === 'smg'
           ? 4100
-          : weapon === 'revolver'
-            ? 1900
-            : heavy
-              ? 1400
-              : 3300,
+          : weapon === 'lmg'
+            ? 2000
+            : weapon === 'revolver'
+              ? 1900
+              : heavy
+                ? 1400
+                : 3300,
       heavy ? 0.6 : 0.35,
       position,
     );
-    tone(heavy ? 155 : 260, 45, heavy ? 0.2 : 0.09, 0.25, position);
+    tone(
+      heavy ? 155 : weapon === 'lmg' ? 180 : 260,
+      45,
+      heavy ? 0.2 : 0.09,
+      0.25,
+      position,
+    );
   };
   return {
     get volume() {

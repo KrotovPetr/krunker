@@ -16,6 +16,11 @@ export interface MapDefinition {
   supplies?: ReadonlyArray<Vec3>;
   navigationHeights?: readonly number[];
   upperLevel?: number;
+  tacticalPositions?: ReadonlyArray<{
+    id: string;
+    position: Vec3;
+    role: 'advance' | 'flank' | 'overwatch' | 'guard';
+  }>;
   zones?: ReadonlyArray<{
     name: string;
     x: number;
@@ -31,7 +36,11 @@ export interface MapDefinition {
     yaw: number;
     color: number;
   }>;
-  defense?: { players: ReadonlyArray<Vec3>; enemies: ReadonlyArray<Vec3> };
+  defense?: {
+    players: ReadonlyArray<Vec3>;
+    enemies: ReadonlyArray<Vec3>;
+    concealedSpawns?: boolean;
+  };
   practice?: {
     spawns: ReadonlyArray<Vec3>;
     targets: ReadonlyArray<{ id: string; position: Vec3 }>;

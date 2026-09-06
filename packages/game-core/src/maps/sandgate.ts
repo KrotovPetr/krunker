@@ -42,6 +42,10 @@ box('b-entry-west', -25, 1.7, -8, 6, 3.4, 0.8);
 box('b-entry-east', -15, 1.7, -8, 6, 3.4, 0.8);
 box('b-entry-lintel', -20, 3.75, -8, 16, 0.7, 1, trim, 'stone');
 box('tunnel-turn-cover', -24, 0.8, 5, 3, 1.6, 3, blue, 'metal');
+// Two turns give short-range weapons a covered approach to B.
+box('tunnel-outer-wall', -28.2, 1.7, 6, 0.4, 3.4, 16);
+box('tunnel-south-partition', -23, 1.55, 2, 10, 3.1, 0.5);
+box('tunnel-north-partition', -15.5, 1.55, -3, 7, 3.1, 0.5);
 // Mid is staggered so opposite spawn plazas have no uninterrupted firing line.
 box('mid-wall-west', -6, 2, -7, 8, 4, 0.8);
 box('mid-wall-east-inner', 3.1, 2, -7, 2.2, 4, 0.8);
@@ -129,6 +133,8 @@ for (const building of blocks.filter((b) => b.id.startsWith('house-'))) {
 // Two exposed lookout terraces: long sightlines, rear and side drop-off exits.
 for (const side of [-1, 1]) {
   box(`lookout-${side}`, side * 29.8, 0.6, -17, 3.2, 1.2, 6, trim, 'stone');
+  // Lookouts face their long lane, rather than both sites and the rear street.
+  box(`lookout-blindside-${side}`, side * 27.6, 1.7, -19.25, 0.4, 3.4, 7.5);
   box(
     `lookout-cover-${side}`,
     side * 29.3,
@@ -197,8 +203,30 @@ export const SANDGATE: MapDefinition = withSupplyCrates({
   ],
   supplies: [
     { x: 3, y: 0.6, z: 20 },
-    { x: -15, y: 0.6, z: -23 },
-    { x: 16, y: 0.6, z: -23 },
+    { x: -25.5, y: 0.6, z: -18.5 },
+    { x: 18, y: 0.6, z: -20 },
+  ],
+  tacticalPositions: [
+    { id: 'plaza-west', position: { x: -7, y: 0.03, z: 19 }, role: 'guard' },
+    { id: 'plaza-east', position: { x: 7, y: 0.03, z: 19 }, role: 'guard' },
+    { id: 'tunnel-entry', position: { x: -17, y: 0.03, z: 7 }, role: 'flank' },
+    { id: 'tunnel-turn', position: { x: -21, y: 0.03, z: -1 }, role: 'flank' },
+    { id: 'mid', position: { x: 1, y: 0.03, z: -3 }, role: 'advance' },
+    { id: 'short', position: { x: 6, y: 0.83, z: -3 }, role: 'advance' },
+    { id: 'long', position: { x: 21, y: 0.03, z: 7 }, role: 'advance' },
+    { id: 'a', position: { x: 23, y: 0.12, z: -11 }, role: 'guard' },
+    { id: 'b', position: { x: -21, y: 0.12, z: -13 }, role: 'guard' },
+    {
+      id: 'east-lookout',
+      position: { x: 30.8, y: 1.23, z: -17 },
+      role: 'overwatch',
+    },
+    {
+      id: 'west-lookout',
+      position: { x: -30.8, y: 1.23, z: -17 },
+      role: 'overwatch',
+    },
+    { id: 'rear', position: { x: 1, y: 0.03, z: -25 }, role: 'flank' },
   ],
   blocks,
   spawns: [
@@ -212,6 +240,7 @@ export const SANDGATE: MapDefinition = withSupplyCrates({
     { x: 6, y: 0.83, z: 0 },
   ],
   defense: {
+    concealedSpawns: true,
     players: [
       { x: 0, y: 0.03, z: 18 },
       { x: 2, y: 0.03, z: 18 },
@@ -219,11 +248,11 @@ export const SANDGATE: MapDefinition = withSupplyCrates({
       { x: 0, y: 0.03, z: 20 },
     ],
     enemies: [
-      { x: -20, y: 0.12, z: -21 },
-      { x: 23, y: 0.12, z: -21 },
-      { x: 0, y: 0.03, z: -20 },
-      { x: -26, y: 0.03, z: 0 },
-      { x: 26, y: 0.03, z: -6 },
+      { x: -25, y: 0.03, z: -26.5 },
+      { x: 25, y: 0.03, z: -26.5 },
+      { x: 0, y: 0.03, z: -26.5 },
+      { x: -30, y: 0.03, z: 6 },
+      { x: 30, y: 0.03, z: 5 },
     ],
   },
   landmarks: [
