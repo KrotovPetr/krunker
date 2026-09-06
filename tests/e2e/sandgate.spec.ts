@@ -63,6 +63,12 @@ test('walks long A and the rear connection to B, with matching minimap and chall
     )
     .toBeGreaterThan(25);
   await page.keyboard.up('d');
+  await expect
+    .poll(async () => Number(await page.locator('#speed').textContent()))
+    .toBeLessThan(0.1);
+  // Cross north of the supply crates, south of the rear-street cover.
+  // Start crouching from rest to avoid triggering a slide into that cover.
+  await page.keyboard.down('Shift');
   await page.keyboard.down('w');
   await expect
     .poll(
@@ -70,8 +76,12 @@ test('walks long A and the rear connection to B, with matching minimap and chall
         Number(await page.locator('#movement-hud').getAttribute('data-z')),
       { intervals: [40] },
     )
-    .toBeLessThan(-22);
+    .toBeLessThan(-23.8);
   await page.keyboard.up('w');
+  await expect
+    .poll(async () => Number(await page.locator('#speed').textContent()))
+    .toBeLessThan(0.1);
+  await page.keyboard.up('Shift');
   await page.keyboard.down('a');
   await expect
     .poll(

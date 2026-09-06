@@ -79,6 +79,11 @@ test('external stairs lead to the roof and minimap displays the upper level', as
     )
     .toBeLessThan(11);
   await page.keyboard.up('w');
+  await expect
+    .poll(async () => Number(await page.locator('#speed').textContent()))
+    .toBeLessThan(0.1);
+  // Align at walking-crouch speed so polling and braking cannot miss the stair.
+  await page.keyboard.down('Shift');
   await page.keyboard.down('d');
   await expect
     .poll(
@@ -88,6 +93,15 @@ test('external stairs lead to the roof and minimap displays the upper level', as
     )
     .toBeGreaterThan(10.9);
   await page.keyboard.up('d');
+  await expect
+    .poll(async () => Number(await page.locator('#speed').textContent()))
+    .toBeLessThan(0.1);
+  const stairX = Number(
+    await page.locator('#movement-hud').getAttribute('data-x'),
+  );
+  expect(stairX).toBeGreaterThan(10.45);
+  expect(stairX).toBeLessThan(12.55);
+  await page.keyboard.up('Shift');
   await page.keyboard.down('w');
   await expect
     .poll(
