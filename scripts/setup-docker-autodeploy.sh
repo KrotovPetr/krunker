@@ -185,98 +185,116 @@ finish() {
 # ──────────────────────────────────────────────────────────────────────────
 
 TOTAL_STAGES=4
-
-# Run from the checkout, never relative to the caller's working directory.
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 ENV_FILE="$PWD/.env"
 [[ -t 0 ]] || { echo "Запусти мастер в интерактивном SSH-терминале."; exit 1; }
-[[ -r /etc/os-release ]] || { echo "Этот мастер предназначен для Ubuntu VM."; exit 1; }
-. /etc/os-release
-[[ "$ID" == ubuntu ]] || { echo "Этот мастер предназначен для Ubuntu VM."; exit 1; }
-[[ "$(id -u)" != 0 ]] || { echo "Запусти bash scripts/setup-docker.sh без sudo."; exit 1; }
+[[ "$(uname -s)" == Linux ]] || { echo "Этот мастер запускается только на VM Linux."; exit 1; }
+[[ "$(id -u)" != 0 ]] || { echo "Запусти мастер без sudo."; exit 1; }
+sudo /usr/bin/docker --host unix:///var/run/docker.sock info >/dev/null
+sudo /usr/bin/docker compose version
+id github-deploy >/dev/null
+sudo test -s /home/github-deploy/.ssh/authorized_keys
+if ! sudo grep -Fq 'command="/usr/local/bin/krunker-deploy"' /home/github-deploy/.ssh/authorized_keys; then
+  echo "Сначала настрой SSH-ключ с forced command /usr/local/bin/krunker-deploy."
+  exit 1
+fi
 
-banner "Krunker: Docker на VM"
+banner "Krunker: автоматический Docker-деплой"
 
-stage "Подготовка"
-say "План: Docker и Compose → адрес сайта в .env → сборка → запуск и проверка."
-say "Ключи SSH, authorized_keys и существующие службы мастер не меняет."
+stage "GitHub и план переключения"
+say "План: переменные GitHub → конфигурация и ограниченный sudo на VM → доступ к GHCR → включение."
+say "SSH-ключи остаются прежними. github-deploy не получит доступ ко всему Docker."
 open_url "https://github.com/KrotovPetr/krunker/settings/variables/actions"
-step "Если включён старый автодеплой, поставь DEPLOY_ENABLED=false."
-step "В группе безопасности VM разреши TCP 80 и 443. Порт 2567 не открывай."
-warn "Docker публикует порты в обход правил UFW; проверь облачную группу безопасности."
-confirm "Продолжить настройку на этой VM?" || exit 0
+step "В Repository variables поставь DEPLOY_ENABLED=false и DEPLOY_MODE=docker."
+step "Эти файлы должны быть отправлены в main. На первом push начнутся проверки и публикация образов."
+warn "Мастер заменит установленный /usr/local/bin/krunker-deploy. Старые файлы сохранятся в резервной копии."
+warn "После переключения управляй игрой через /etc/krunker, а не compose.yaml из клона."
+confirm "Деплой выключен и можно подготовить переключение?" || exit 0
 
-stage "Docker и Compose"
-if ! command -v docker >/dev/null 2>&1; then
-  open_url "https://docs.docker.com/engine/install/ubuntu/#install-using-the-apt-repository"
-  say "Установлю Docker Engine и Compose из официального apt-репозитория."
-  confirm "Установить пакеты через sudo?" || exit 0
-  # Do not replace an existing installation or its apt repository silently.
-  if [[ -e /etc/apt/sources.list.d/docker.sources || -e /etc/apt/sources.list.d/docker.list ]]; then
-    warn "Репозиторий Docker уже настроен. Заверши установку по документации и повтори запуск."
+stage "Конфигурация и скрипты на VM"
+if ! sudo test -f /etc/krunker/deploy.env; then
+  say "Для HTTP по IP введи :80. Для HTTPS введи домен без схемы и пути."
+  ask SITE_ADDRESS "Адрес сайта:"
+  SITE_ADDRESS="${SITE_ADDRESS:-:80}"
+  if [[ "$SITE_ADDRESS" != :80 && ! "$SITE_ADDRESS" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
+    warn "Нужен домен без схемы и пути либо :80."
     exit 1
   fi
-  sudo apt-get update
-  sudo apt-get install -y ca-certificates curl
-  sudo install -m 0755 -d /etc/apt/keyrings
-  FPS_DOCKER_TMP=$(mktemp -d)
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o "$FPS_DOCKER_TMP/docker.asc"
-  sudo install -m 0644 "$FPS_DOCKER_TMP/docker.asc" /etc/apt/keyrings/docker.asc
-  sudo tee /etc/apt/sources.list.d/docker.sources >/dev/null <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/ubuntu
-Suites: ${UBUNTU_CODENAME:-$VERSION_CODENAME}
-Components: stable
-Architectures: $(dpkg --print-architecture)
-Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-  sudo apt-get update
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo systemctl enable --now docker
-fi
-sudo docker info >/dev/null
-sudo docker compose version
-pause "Docker доступен. Enter для настройки адреса."
-
-stage "Адрес и сборка"
-say "Для запуска по IP оставь поле пустым: HTTP на порту 80."
-say "Для HTTPS введи домен без https://, например play.example.com."
-say "Домен должен указывать на эту VM; TCP 80 и 443 должны быть доступны."
-ask SITE_ADDRESS "Адрес сайта:"
-SITE_ADDRESS="${SITE_ADDRESS:-:80}"
-if [[ "$SITE_ADDRESS" != :80 && ! "$SITE_ADDRESS" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
-  warn "Нужен домен без схемы, пути и порта либо :80."
-  exit 1
-fi
-confirm "Сохранить SITE_ADDRESS=$SITE_ADDRESS в .env?" || exit 0
-write_env SITE_ADDRESS "$SITE_ADDRESS"
-sudo docker compose config --quiet
-say "Сначала соберу оба образа. Работающие контейнеры пока не останавливаются."
-confirm "Начать сборку? Первый запуск может занять несколько минут." || exit 0
-sudo docker compose build
-
-stage "Запуск"
-warn "Обновление контейнеров завершает текущие игровые комнаты."
-say "Если порт 80/443 занят старым Caddy или другим сайтом, сначала разберись с этим сервисом."
-say "Мастер не останавливает чужие службы и не удаляет контейнеры или данные."
-confirm "Запустить контейнеры на портах из compose.yaml/.env?" || exit 0
-sudo docker compose up -d --wait --wait-timeout 120
-sudo docker compose ps
-sudo docker compose exec -T web wget -q -O - http://127.0.0.1:8080/health
-printf '\n'
-if [[ "$SITE_ADDRESS" == :80 ]]; then
-  say "Открой http://ПУБЛИЧНЫЙ_IP_VM в браузере."
+  ask HTTP_PORT "Внешний HTTP-порт, Enter = 80:"
+  HTTP_PORT="${HTTP_PORT:-80}"
+  ask HTTPS_PORT "Внешний HTTPS-порт, Enter = 443:"
+  HTTPS_PORT="${HTTPS_PORT:-443}"
+  for port in "$HTTP_PORT" "$HTTPS_PORT"; do
+    [[ "$port" =~ ^[1-9][0-9]{0,4}$ ]] && (( 10#$port <= 65535 )) || { warn "Некорректный порт"; exit 1; }
+  done
+  [[ "$HTTP_PORT" != "$HTTPS_PORT" ]] || { warn "Порты должны отличаться"; exit 1; }
+  say "Образы: ghcr.io/krotovpetr/krunker-server и ghcr.io/krotovpetr/krunker-web."
+  confirm "Сохранить адрес и порты в /etc/krunker/deploy.env?" || exit 0
+  ENV_FILE=$(mktemp)
+  write_env KRUNKER_IMAGE_PREFIX ghcr.io/krotovpetr/krunker
+  write_env SITE_ADDRESS "$SITE_ADDRESS"
+  write_env HTTP_PORT "$HTTP_PORT"
+  write_env HTTPS_PORT "$HTTPS_PORT"
+  sudo install -d -m 755 -o root -g root /etc/krunker
+  sudo install -m 600 -o root -g root "$ENV_FILE" /etc/krunker/deploy.env
+  ENV_FILE=/etc/krunker/deploy.env
 else
-  open_url "https://$SITE_ADDRESS"
+  say "Существующий /etc/krunker/deploy.env сохранится без изменений."
 fi
-step "Создай комнату и зайди вторым игроком. Проверь движение и стрельбу."
-if ! confirm "Сайт и комната работают?"; then
-  sudo docker compose logs --tail=80
-  warn "Контейнеры оставлены для диагностики. Первый запуск ещё не подтверждён."
-  exit 1
-fi
+confirm "Установить root-owned Compose, скрипты и ограниченное правило sudo?" || exit 0
+FPS_BACKUP_DIR="/etc/krunker/backups/$(date +%Y%m%d%H%M%S)"
+sudo install -d -m 700 -o root -g root "$FPS_BACKUP_DIR"
+for file in /usr/local/bin/krunker-deploy /usr/local/sbin/krunker-docker-deploy /etc/krunker/compose.yaml /etc/sudoers.d/krunker-docker; do
+  if sudo test -f "$file"; then
+    sudo cp -a "$file" "$FPS_BACKUP_DIR/$(basename "$file")"
+  fi
+done
+sudo install -m 644 -o root -g root deploy/compose.production.yaml /etc/krunker/compose.yaml
+sudo install -m 755 -o root -g root scripts/deploy-docker.sh /usr/local/sbin/krunker-docker-deploy
+sudo install -m 755 -o root -g root scripts/deploy-docker-ssh.sh /usr/local/bin/krunker-deploy
+FPS_SUDOERS_TMP=$(mktemp)
+printf '%s\n' 'github-deploy ALL=(root) NOPASSWD: /usr/local/sbin/krunker-docker-deploy *' > "$FPS_SUDOERS_TMP"
+sudo visudo -cf "$FPS_SUDOERS_TMP"
+sudo install -m 440 -o root -g root "$FPS_SUDOERS_TMP" /etc/sudoers.d/krunker-docker
+sudo env KRUNKER_IMAGE_TAG=0000000000000000000000000000000000000000 \
+  /usr/bin/docker compose --project-name krunker --project-directory /etc/krunker \
+  --env-file /etc/krunker/deploy.env -f /etc/krunker/compose.yaml config --quiet
+say "Предыдущие установленные файлы: $FPS_BACKUP_DIR"
+pause "Конфигурация установлена. Enter для доступа к образам."
 
+stage "Чтение Docker-образов"
+say "GHCR по умолчанию создаёт приватные пакеты. Для них VM нужен токен только с read:packages."
+say "Токен не попадёт в репозиторий или GitHub Secrets. Docker сохранит его в /root/.docker/config.json."
+if confirm "Настроить или обновить вход VM в GHCR?"; then
+  open_url "https://github.com/settings/tokens"
+  step "Создай personal access token classic с read:packages. Для организации при необходимости разреши SSO."
+  ENV_FILE=/dev/null
+  ask GHCR_USER "GitHub-логин владельца токена:"
+  [[ "$GHCR_USER" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] || { warn "Некорректный логин"; exit 1; }
+  ask_secret GHCR_READ_TOKEN "Вставь токен, ввод скрыт:"
+  test -n "$GHCR_READ_TOKEN"
+  sudo install -d -m 700 -o root -g root /root/.docker
+  printf '%s' "$GHCR_READ_TOKEN" | sudo /usr/bin/docker --config /root/.docker login ghcr.io -u "$GHCR_USER" --password-stdin
+  unset GHCR_READ_TOKEN
+  sudo chmod 600 /root/.docker/config.json
+else
+  say "Продолжай только если образы публичные или вход root в ghcr.io уже настроен."
+  confirm "VM сможет скачивать оба образа?" || exit 0
+fi
+ENV_FILE=/etc/krunker/deploy.env
+
+stage "Включение"
+open_url "https://github.com/KrotovPetr/krunker/settings/secrets/actions"
+step "Проверь DEPLOY_HOST, DEPLOY_SSH_KEY и DEPLOY_KNOWN_HOSTS. Уже созданные ключи не меняй."
+step "Проверь доступ GitHub runner к SSH-порту VM. Домашнего IP в allowlist недостаточно."
+step "TCP 80/443 должны быть свободны либо уже заняты этим же Compose-проектом krunker."
+warn "При первом Docker-деплое ещё нет записанной предыдущей версии для отката."
+confirm "Готов включить обновления? Текущие комнаты будут завершаться при замене сервера." || exit 0
+open_url "https://github.com/KrotovPetr/krunker/settings/variables/actions"
+step "Поставь DEPLOY_MODE=docker и DEPLOY_ENABLED=true."
+open_url "https://github.com/KrotovPetr/krunker/actions"
+step "Отправь новый коммит в main либо выбери Re-run all jobs у запуска Checks от push текущего main."
+pause "Нажми Enter после настройки переменных GitHub."
 finish
-say "Обновление: git pull --ff-only && sudo docker compose build && sudo docker compose up -d --wait"
-say "Для автодеплоя следующим шагом запусти bash scripts/setup-docker-autodeploy.sh."
-say "До его настройки оставь DEPLOY_ENABLED=false."
+say "Настройка подготовлена. Первый деплой ещё нужно подтвердить по Actions и проверкой комнаты."
+say "На VM не нужен git pull для последующих обновлений игры."

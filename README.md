@@ -58,6 +58,8 @@
 
 Если Docker уже установлен: `sudo docker compose build`, затем `sudo docker compose up -d --wait`. Полная инструкция, HTTPS и обновления: [DEPLOY_DOCKER.md](DEPLOY_DOCKER.md). Контейнерный запуск пока не проверен. Старый автодеплой через systemd нужно оставить выключенным при переходе на Docker.
 
+Автоматические обновления без сборки на VM: [DEPLOY_DOCKER_AUTO.md](DEPLOY_DOCKER_AUTO.md). Разовая настройка на VM: `bash scripts/setup-docker-autodeploy.sh`. После настройки `DEPLOY_MODE=docker` и `DEPLOY_ENABLED=true` push в `main` запускает проверки, публикацию образов и обновление контейнеров.
+
 ## Локальный запуск
 
 Нужны Node.js из `.nvmrc` и pnpm из поля `packageManager` в `package.json`. Если команда pnpm отсутствует, включите её через `corepack enable pnpm`.

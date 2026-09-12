@@ -1,5 +1,7 @@
 # Автодеплой из GitHub на VM
 
+Эта инструкция описывает старый запуск через systemd. Для контейнеров используй [Docker-автодеплой](DEPLOY_DOCKER_AUTO.md) с `DEPLOY_MODE=docker`.
+
 Схема: push в `main` → workflow `Checks` → тесты и сборка → SSH на VM → обновление игры. Pull request и другие ветки не запускают деплой.
 
 Подготовлены [.github/workflows/ci.yml](.github/workflows/ci.yml) и [scripts/deploy-vm.sh](scripts/deploy-vm.sh). Пока repository variable `DEPLOY_ENABLED` не равна `true`, шаг деплоя пропускается. Настройка на реальной VM и запуск GitHub Actions пока не проверялись.
