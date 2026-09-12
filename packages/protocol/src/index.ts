@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Modes, map metadata and snapshot schemas must match between client and server.
-export const PROTOCOL_VERSION = 22;
+export const PROTOCOL_VERSION = 24;
 export const ROOM_TYPE = 'arena';
 export const MAX_PLAYERS = 8;
 export const TICK_RATE = 60;
@@ -94,6 +94,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     viewTick: sequence.optional(),
   }),
   z.strictObject({ type: z.literal('reload') }),
+  z.strictObject({ type: z.literal('selfDestruct') }),
   z.strictObject({ type: z.literal('deployMine') }),
   z.strictObject({
     type: z.literal('squadOrder'),
@@ -349,7 +350,8 @@ export type GameEvent =
       targetId: string;
       attacker: string;
       victim: string;
-      weapon: WeaponId | 'pistol' | 'knife' | 'mine' | 'grenade';
+      weapon:
+        WeaponId | 'pistol' | 'knife' | 'mine' | 'grenade' | 'selfDestruct';
       headshot: boolean;
       attackerAirborne: boolean;
       victimAirborne: boolean;

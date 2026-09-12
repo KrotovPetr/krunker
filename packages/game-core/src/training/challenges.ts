@@ -26,7 +26,7 @@ export const PARKOUR_CHECKPOINTS: readonly Vec3[] = [
   { x: -8, y: 3.03, z: 17 },
   PARKOUR_START,
 ];
-export const COURSE_VERSION = 'switchyard-v1';
+export const COURSE_VERSION = 'switchyard-v2';
 export function emptyChallenge(runId = 0): ChallengeSnapshot {
   return {
     kind: 'training',

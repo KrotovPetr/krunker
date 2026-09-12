@@ -6,6 +6,44 @@ import type {
 import type { MapDefinition } from '../maps/arena.js';
 import type { CollisionWorld } from '../movement/collision-world.js';
 import { visible } from '../bots/navigation.js';
+import type { BotContext } from '../bots/tactics.js';
+
+/** One living bot always anchors the point; ranged teammates cover approaches
+ * only while their team owns it. Losing ownership immediately recalls them. */
+export function controlBotDirective(
+  player: PlayerSnapshot,
+  players: Iterable<PlayerSnapshot>,
+  state: ControlSnapshot,
+  point: NonNullable<MapDefinition['control']>,
+): NonNullable<BotContext['directive']> {
+  const allied = !!player.ally;
+  const owns = state.owner === (allied ? 'allies' : 'enemies');
+  let anchor = player.id;
+  for (const other of players) {
+    if (
+      other.bot &&
+      !!other.ally === allied &&
+      other.ready &&
+      other.connected &&
+      other.health > 0 &&
+      other.id < anchor
+    )
+      anchor = other.id;
+  }
+  const tactical =
+    owns &&
+    !state.contested &&
+    anchor !== player.id &&
+    (player.weapon === 'sniper' || player.weapon === 'lmg')
+      ? 'guard'
+      : 'capture';
+  return {
+    key: `control-point:${tactical}`,
+    position: point.position,
+    radius: point.radius,
+    tactical,
+  };
+}
 
 export const CONTROL = {
   captureSeconds: 5,

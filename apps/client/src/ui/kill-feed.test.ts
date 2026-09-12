@@ -14,6 +14,28 @@ const event: KillEvent = {
   noScope: true,
   distance: 31.6,
 };
+it('announces self-destruction as a death, not a kill reward', () => {
+  const item = createKillFeedItem(
+    {
+      ...event,
+      playerId: 'p',
+      targetId: 'p',
+      attacker: 'Player',
+      victim: 'Player',
+      weapon: 'selfDestruct',
+      headshot: false,
+      attackerAirborne: false,
+      noScope: false,
+      distance: 0,
+    },
+    'p',
+    1000,
+  );
+  expect(item.localKill).toBe(false);
+  expect(item.localDeath).toBe(true);
+  expect(item.tags).toEqual([]);
+  expect(item.announcement).toBe('Player: самоуничтожение');
+});
 
 it('builds compact kill feed details in a stable order', () => {
   expect(createKillFeedItem(event, 'attacker-id', 5000)).toEqual({

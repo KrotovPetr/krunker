@@ -350,7 +350,11 @@ export function createGameUI() {
         el('personal-score').textContent =
           `${local.kills} убийств · ${local.deaths} смертей`;
         el('death-message').hidden =
-          local.health > 0 || snapshot.phase !== 'active';
+          local.health > 0 ||
+          !local.ready ||
+          (snapshot.phase !== 'active' &&
+            snapshot.mode !== 'training' &&
+            snapshot.mode !== 'parkour');
         el('death-message').textContent =
           `Возрождение через ${Math.ceil(local.respawnRemaining)} с · Esc — выбрать класс`;
         el('protection').textContent =
@@ -569,7 +573,7 @@ export function createGameUI() {
         }
       }
       if (event.type === 'kill') {
-        if (event.playerId === localId) {
+        if (event.playerId === localId && event.targetId !== localId) {
           killUntil = performance.now() + 400;
           hitUntil = killUntil;
           el('kill-confirm').textContent = `ЦЕЛЬ УСТРАНЕНА · ${event.victim}`;

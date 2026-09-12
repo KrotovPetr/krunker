@@ -14,6 +14,15 @@ export function createControls(
     pitch = 0,
     sensitivity = 0.002;
   let jumpQueued = false;
+  let selfDestructStarted: number | undefined;
+  let selfDestructSent = false;
+  const selfDestructProgress = () =>
+    !selfDestructSent && locked() && selfDestructStarted !== undefined
+      ? Math.min(
+          1,
+          Math.max(0, (performance.now() - selfDestructStarted) / 1500),
+        )
+      : 0;
   let primary = false,
     shotQueued = false,
     mineQueued = false,
@@ -33,6 +42,8 @@ export function createControls(
   const aiming = () => (aimHeld || aimToggled) && locked();
   const clear = () => {
     keys.clear();
+    selfDestructStarted = undefined;
+    selfDestructSent = false;
     jumpQueued = false;
     slotQueued = undefined;
     orderQueued = undefined;
@@ -46,6 +57,7 @@ export function createControls(
         false;
   };
   const handled = new Set([
+    'KeyK',
     'KeyF',
     'KeyZ',
     'KeyX',
@@ -80,6 +92,10 @@ export function createControls(
         return;
       }
       if (!handled.has(event.code)) return;
+      if (!event.repeat && event.code === 'KeyK' && !keys.has('KeyK')) {
+        selfDestructStarted = performance.now();
+        selfDestructSent = false;
+      }
       if (!event.repeat && event.code === 'KeyZ') orderQueued = 'follow';
       if (!event.repeat && event.code === 'KeyX') orderQueued = 'hold';
       if (!event.repeat && event.code === 'KeyT') orderQueued = 'attack';
@@ -111,6 +127,10 @@ export function createControls(
     'keyup',
     (event) => {
       keys.delete(event.code);
+      if (event.code === 'KeyK') {
+        selfDestructStarted = undefined;
+        selfDestructSent = false;
+      }
     },
     options,
   );
@@ -195,8 +215,14 @@ export function createControls(
     get locked() {
       return locked();
     },
+    get selfDestructProgress() {
+      return selfDestructProgress();
+    },
     actions() {
+      const selfDestruct = !selfDestructSent && selfDestructProgress() >= 1;
+      if (selfDestruct) selfDestructSent = true;
       const result = {
+        selfDestruct,
         order: orderQueued,
         primary,
         pressed: shotQueued,

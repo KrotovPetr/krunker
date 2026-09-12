@@ -36,6 +36,34 @@ beforeEach(() => {
 afterEach(() => {
   controls.dispose();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+it('requires a continuous K hold and emits only once until release', () => {
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+  emit('keydown', { code: 'KeyK', repeat: false });
+  now.mockReturnValue(1400);
+  expect(controls.actions().selfDestruct).toBe(false);
+  emit('keyup', { code: 'KeyK' });
+  now.mockReturnValue(2000);
+  expect(controls.selfDestructProgress).toBe(0);
+  expect(controls.actions().selfDestruct).toBe(false);
+  emit('keydown', { code: 'KeyK', repeat: false });
+  now.mockReturnValue(3500);
+  expect(controls.actions().selfDestruct).toBe(true);
+  expect(controls.selfDestructProgress).toBe(0);
+  expect(controls.actions().selfDestruct).toBe(false);
+  emit('keydown', { code: 'KeyK', repeat: true });
+  now.mockReturnValue(6500);
+  expect(controls.actions().selfDestruct).toBe(false);
+});
+it('cancels self-destruction on blur or leaving pointer lock', () => {
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+  emit('keydown', { code: 'KeyK', repeat: false });
+  win.dispatchEvent(new Event('blur'));
+  now.mockReturnValue(5000);
+  expect(controls.actions().selfDestruct).toBe(false);
+  emit('keydown', { code: 'KeyK', repeat: false });
+  expect(controls.selfDestructProgress).toBe(0);
 });
 it('toggles the optical sight with Q and clears it when leaving the arena', () => {
   emit('keydown', { code: 'KeyQ', repeat: false });

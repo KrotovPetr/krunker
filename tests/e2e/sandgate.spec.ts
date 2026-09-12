@@ -65,7 +65,7 @@ test.beforeEach(async ({ page, browserName }) => {
     'sandgate',
   );
 });
-test('walks under the gallery and climbs its north stair without crouching', async ({
+test('walks under the gallery and climbs its north ramp without crouching', async ({
   page,
 }) => {
   test.setTimeout(60000);

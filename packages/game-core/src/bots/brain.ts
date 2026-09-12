@@ -42,6 +42,7 @@ export function createBotBrain(id: number) {
     avoidRemaining = 0;
   const excluded = new Map<string, number>();
   let directiveKey = '';
+  let previousHealth = 0;
   const settings = {
     easy: { reaction: 0.95, error: 0.05, turn: 1.3 },
     normal: { reaction: 0.7, error: 0.027, turn: 1.8 },
@@ -87,6 +88,7 @@ export function createBotBrain(id: number) {
         avoidRemaining = 0;
         state = 'patrol';
         life = player.lifeId;
+        previousHealth = player.health;
       }
       const input: InputCommand = {
         type: 'input',
@@ -146,14 +148,17 @@ export function createBotBrain(id: number) {
         memory = 3;
       } else seenFor = 0;
       const threat = memory > 0 ? lastSeen : undefined;
+      const hit = previousHealth - player.health >= 10;
+      previousHealth = player.health;
       const needsSupply =
         player.reserveAmmo === 0 &&
         player.ammo < 3 &&
         player.supplyCooldown <= 0;
       if (
-        target &&
+        threat &&
         coverCooldown === 0 &&
-        (player.health < player.maxHealth * 0.35 ||
+        (hit ||
+          player.health < player.maxHealth * 0.35 ||
           player.reloadRemaining > 0 ||
           player.ammo === 0)
       ) {
@@ -179,6 +184,7 @@ export function createBotBrain(id: number) {
         state !== 'cover' && state !== 'resupply'
           ? context.directive
           : undefined;
+      const tactical = !!directive?.tactical;
       if ((directive?.key ?? '') !== directiveKey) {
         directiveKey = directive?.key ?? '';
         clearGoal();
@@ -215,10 +221,13 @@ export function createBotBrain(id: number) {
       );
       const preferred = preferredRange(player);
       const mustMove = directive
-        ? distance(player.position, directive.position) > directive.radius
+        ? tactical
+          ? !goal || distance(player.position, goal.position) > 0.7
+          : distance(player.position, directive.position) > directive.radius
         : state !== 'engage' || range > preferred || range < preferred * 0.45;
       if (
         directive &&
+        !tactical &&
         goal &&
         replan <= 0 &&
         distance(goal.position, directive.position) > 2
@@ -226,6 +235,19 @@ export function createBotBrain(id: number) {
         clearGoal();
       if (directive && goal && !path.length && mustMove && replan <= 0)
         clearGoal();
+      if (tactical && goal && !mustMove) {
+        hold += dt;
+        // Reposition deliberately, not every frame. Heavy weapons hold longer.
+        if (
+          hold >
+          (player.weapon === 'sniper' || player.weapon === 'lmg' ? 7 : 4) +
+            (id % 3)
+        ) {
+          excluded.set(goal.key, 6);
+          clearGoal();
+          cursor++;
+        }
+      }
       if (!path.length && goal && !directive) {
         if (
           distance(player.position, goal.position) <
@@ -243,7 +265,33 @@ export function createBotBrain(id: number) {
       }
       if (mustMove && replan <= 0 && !goal) {
         const blocked = new Set(excluded.keys());
-        if (directive) {
+        if (directive && tactical) {
+          goal = choosePosition(
+            player,
+            navigation,
+            world,
+            state,
+            cursor,
+            blocked,
+            context,
+            threat,
+            avoid,
+          );
+          // A map without authored point positions still has a usable centre.
+          if (
+            !goal &&
+            distance(player.position, directive.position) >
+              directive.radius - 0.6
+          ) {
+            const route = navigation.plan(
+              player.position,
+              directive.position,
+              avoid,
+            );
+            if (route)
+              goal = { key: directive.key, position: route.destination, route };
+          }
+        } else if (directive) {
           const offsets = [
             [-0.7, 0.5],
             [0.7, 0.5],
@@ -290,13 +338,19 @@ export function createBotBrain(id: number) {
           bestWaypointDistance = Infinity;
           stalled = 0;
         }
+        // No real shelter exists: keep fighting instead of freezing for three
+        // seconds in a cover state that has no destination.
+        if (!goal && state === 'cover') {
+          coverRemaining = 0;
+          state = target ? 'engage' : 'search';
+        }
         replan = 0.8 + (id % 5) * 0.05;
         if (!goal) cursor++;
       }
       const waypoint = path[0];
       const look = target
         ? body(target)
-        : waypoint
+        : waypoint && mustMove
           ? { ...waypoint, y: eye.y }
           : {
               x: eye.x - Math.sin(player.yaw + 0.5),
@@ -348,7 +402,7 @@ export function createBotBrain(id: number) {
           jumpCooldown = 1;
         }
       } else if (
-        !directive &&
+        (!directive || tactical) &&
         canSee &&
         state === 'engage' &&
         player.weapon !== 'lmg'
@@ -358,6 +412,21 @@ export function createBotBrain(id: number) {
           id % 3 !== 0 && player.weapon !== 'sniper' && strafe < -0.4;
         input.buttons.right =
           id % 3 !== 0 && player.weapon !== 'sniper' && strafe > 0.4;
+        if (tactical && directive?.tactical === 'capture') {
+          const side = input.buttons.right ? 1 : input.buttons.left ? -1 : 0;
+          const next = {
+            ...player.position,
+            x: player.position.x + Math.cos(input.yaw) * side * 0.75,
+            z: player.position.z - Math.sin(input.yaw) * side * 0.75,
+          };
+          if (
+            side !== 0 &&
+            (distance(next, directive.position) > directive.radius - 0.3 ||
+              !world.canOccupy(next, playerHeight(player)))
+          ) {
+            input.buttons.left = input.buttons.right = false;
+          }
+        }
       }
       const settled =
         Math.abs(angle(desiredYaw - input.yaw)) < 0.12 &&

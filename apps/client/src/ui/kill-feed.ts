@@ -21,6 +21,7 @@ export type KillFeedItem = {
 };
 
 const WEAPON_LABELS: Record<KillEvent['weapon'], string> = {
+  selfDestruct: 'СБРОС',
   mine: 'МИНА',
   grenade: 'ГРАНАТА',
   sapper: 'САП',
@@ -35,6 +36,7 @@ const WEAPON_LABELS: Record<KillEvent['weapon'], string> = {
 };
 
 const WEAPON_NAMES: Record<KillEvent['weapon'], string> = {
+  selfDestruct: 'самоуничтожение',
   mine: 'мина сапёра',
   grenade: 'осколочная граната',
   sapper: 'сапёр',
@@ -69,16 +71,18 @@ export function createKillFeedItem(
   expires: number,
 ): KillFeedItem {
   const tags: KillFeedTag[] = [];
+  const selfDestruct = event.weapon === 'selfDestruct';
   if (event.headshot) tags.push({ kind: 'headshot', label: 'В ГОЛОВУ' });
   if (event.attackerAirborne)
     tags.push({ kind: 'airborne', label: 'В ПРЫЖКЕ' });
   if (event.victimAirborne)
     tags.push({ kind: 'target-airborne', label: 'ЦЕЛЬ В ВОЗДУХЕ' });
   if (event.noScope) tags.push({ kind: 'no-scope', label: 'БЕЗ ПРИЦЕЛА' });
-  tags.push({
-    kind: 'distance',
-    label: `${Math.max(0, Math.round(event.distance))} М`,
-  });
+  if (!selfDestruct)
+    tags.push({
+      kind: 'distance',
+      label: `${Math.max(0, Math.round(event.distance))} М`,
+    });
 
   const details = tags
     .filter((tag) => tag.kind !== 'distance')
@@ -92,9 +96,11 @@ export function createKillFeedItem(
     weaponLabel: WEAPON_LABELS[event.weapon],
     weaponName: WEAPON_NAMES[event.weapon],
     tags,
-    localKill: event.playerId === localId,
+    localKill: event.playerId === localId && !selfDestruct,
     localDeath: event.targetId === localId,
-    announcement: `${event.attacker} убил ${event.victim}, ${WEAPON_NAMES[event.weapon]}, ${meters(event.distance)}${suffix}`,
+    announcement: selfDestruct
+      ? `${event.victim}: самоуничтожение`
+      : `${event.attacker} убил ${event.victim}, ${WEAPON_NAMES[event.weapon]}, ${meters(event.distance)}${suffix}`,
     expires,
   };
 }

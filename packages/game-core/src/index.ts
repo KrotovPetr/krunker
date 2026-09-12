@@ -7,6 +7,7 @@ import {
 export { emptyWave } from './waves/director.js';
 import { getMap } from './maps/catalog.js';
 import { copyPlayer, copyInput } from './network/copy-state.js';
+import { controlBotDirective } from './control/control.js';
 import {
   emptyMission,
   enterMissionStage,
@@ -543,6 +544,20 @@ export function createGame(
       if (!Number.isFinite(delta) || Math.abs(delta - fixedDelta) > 1e-9)
         throw new Error('Game must advance at its configured fixed timestep');
       const events: GameEvent[] = [];
+      const killPlayer = (target: PlayerSnapshot) => {
+        target.health = 0;
+        target.deaths++;
+        mines.removeOwner(target.id);
+        grenades.removeOwner(target.id);
+        target.respawnRemaining =
+          mode === 'waves' || mode === 'mission'
+            ? enemy(target)
+              ? 1.6
+              : 0
+            : config.respawnSeconds;
+        target.reloadRemaining = 0;
+        target.velocity = { x: 0, y: 0, z: 0 };
+      };
       const damagePlayer = (
         shooter: PlayerSnapshot,
         target: PlayerSnapshot,
@@ -574,18 +589,8 @@ export function createGame(
           headshot,
         });
         if (target.health > 0) return;
-        target.deaths++;
+        killPlayer(target);
         shooter.kills++;
-        mines.removeOwner(target.id);
-        grenades.removeOwner(target.id);
-        target.respawnRemaining =
-          mode === 'waves' || mode === 'mission'
-            ? enemy(target)
-              ? 1.6
-              : 0
-            : config.respawnSeconds;
-        target.reloadRemaining = 0;
-        target.velocity = { x: 0, y: 0, z: 0 };
         events.push({
           type: 'kill',
           playerId: shooter.id,
@@ -660,6 +665,38 @@ export function createGame(
           if (!player.connected) continue;
           const command = item.command;
           switch (command.type) {
+            case 'selfDestruct':
+              if (
+                player.bot ||
+                !player.ready ||
+                player.health <= 0 ||
+                (phase !== 'active' &&
+                  !(
+                    (mode === 'training' || mode === 'parkour') &&
+                    phase === 'waiting'
+                  )) ||
+                (mode === 'mission' &&
+                  ['departing', 'complete', 'failed'].includes(mission.stage))
+              )
+                break;
+              killPlayer(player);
+              if (challengeActive(player.challenge))
+                player.challenge.status = 'failed';
+              fires = fires.filter((f) => f.playerId !== player.id);
+              events.push({
+                type: 'kill',
+                playerId: player.id,
+                targetId: player.id,
+                attacker: player.nickname,
+                victim: player.nickname,
+                weapon: 'selfDestruct',
+                headshot: false,
+                attackerAirborne: false,
+                victimAirborne: false,
+                noScope: false,
+                distance: 0,
+              });
+              break;
             case 'squadOrder': {
               const reject = (reason: 'invalidOrder' | 'orderCooldown') =>
                 events.push({
@@ -1298,7 +1335,16 @@ export function createGame(
                         directive: {
                           key: `order:${squadOrder.serial}`,
                           position: squadOrder.position,
-                          radius: squadOrder.kind === 'follow' ? 3 : 1.3,
+                          radius:
+                            squadOrder.kind === 'follow'
+                              ? 3
+                              : squadOrder.kind === 'attack' &&
+                                  mode === 'control'
+                                ? map.control!.radius
+                                : 1.3,
+                          ...(squadOrder.kind === 'attack' && mode === 'control'
+                            ? { tactical: 'capture' as const }
+                            : {}),
                         },
                       }
                     : mode === 'mission'
@@ -1315,11 +1361,12 @@ export function createGame(
                         }
                       : mode === 'control' && map.control
                         ? {
-                            directive: {
-                              key: 'control-point',
-                              position: map.control.position,
-                              radius: 2.5,
-                            },
+                            directive: controlBotDirective(
+                              player,
+                              players.values(),
+                              control,
+                              map.control,
+                            ),
                           }
                         : {}),
                   occupied: [...players.values()].flatMap((p) => {
@@ -1414,7 +1461,7 @@ export function createGame(
             }
             continue;
           }
-          if (phase === 'active') {
+          if (phase === 'active' || mode === 'training' || mode === 'parkour') {
             player.respawnRemaining = Math.max(
               0,
               player.respawnRemaining - delta,

@@ -6,7 +6,12 @@ import type { createNavigation, NavigationRoute } from './navigation.js';
 export type BotState =
   'patrol' | 'advance' | 'engage' | 'search' | 'cover' | 'resupply';
 export interface BotContext {
-  directive?: { key: string; position: Vec3; radius: number };
+  directive?: {
+    key: string;
+    position: Vec3;
+    radius: number;
+    tactical?: 'capture' | 'guard';
+  };
   team?: 'attackers' | 'defenders';
   occupied?: readonly Vec3[];
 }
@@ -44,6 +49,7 @@ export function choosePosition(
 ): BotGoal | undefined {
   const points = navigation.positions;
   const desiredRange = preferredRange(player);
+  const objective = context.directive?.tactical ? context.directive : undefined;
   const candidates = points
     .flatMap((point, index) => {
       if (
@@ -51,6 +57,21 @@ export function choosePosition(
         distance(player.position, point.position) < 1.5
       )
         return [];
+      if (objective && state !== 'cover') {
+        const radius =
+          objective.radius + (objective.tactical === 'guard' ? 7 : -0.6);
+        if (distance(point.position, objective.position) > radius) return [];
+        if (
+          objective.tactical === 'capture' &&
+          (Math.abs(point.position.y - objective.position.y) > 1 ||
+            !visible(
+              world,
+              { ...objective.position, y: objective.position.y + 0.6 },
+              { ...point.position, y: point.position.y + 0.6 },
+            ))
+        )
+          return [];
+      }
       const travel = distance(player.position, point.position);
       const exposed =
         threat &&
@@ -62,7 +83,7 @@ export function choosePosition(
       if (state === 'cover' && (!threat || exposed)) return [];
       let score = travel * 0.12;
       score += (context.occupied ?? []).reduce(
-        (sum, p) => sum + (distance(p, point.position) < 3 ? 80 : 0),
+        (sum, p) => sum + Math.max(0, 3 - distance(p, point.position)) * 40,
         0,
       );
       if (threat && state !== 'cover') {
@@ -78,6 +99,17 @@ export function choosePosition(
           1.5;
         if (context.team && navigation.defenseCenter)
           score += distance(point.position, navigation.defenseCenter) * 0.4;
+      }
+      if (objective) {
+        // Stay near the objective even when taking shelter. Guard positions
+        // cover approaches; capture positions remain inside the scoring area.
+        const fromPoint = distance(point.position, objective.position);
+        score +=
+          state === 'cover'
+            ? fromPoint * 1.5
+            : objective.tactical === 'guard'
+              ? Math.abs(fromPoint - 7) * 2
+              : 0;
       }
       if (player.weapon === 'sniper' && point.role === 'overwatch') score -= 8;
       if (

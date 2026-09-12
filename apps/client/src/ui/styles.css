@@ -1293,3 +1293,15 @@ tr.self {
   left: 52px;
   transform: none;
 }
+#self-destruct-hint {
+  position: fixed;
+  left: 50%;
+  top: 65%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  background: #451b1bef;
+  color: #fff0df;
+  border: 1px solid #d7846a;
+  text-align: center;
+  pointer-events: none;
+}

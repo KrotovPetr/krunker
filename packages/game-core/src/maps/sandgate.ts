@@ -74,20 +74,17 @@ for (const z of [-6.5, 6.5])
   box('gallery-west-parapet-' + z, 12.15, 3.5, z, 0.3, 1, 7, teal, 'stone');
 box('gallery-sight-screen', 17, 3.95, 0, 3, 1.9, 0.7, clay);
 box('gallery-ground-cover', 21.5, 0.75, 4, 2, 1.5, 2, teal, 'metal');
-// Opposite stair approaches and an open central drop-off.
+// Opposite continuous slopes and an open central drop-off.
 for (const side of [-1, 1])
-  for (let i = 0; i < 12; i++)
-    box(
-      'gallery-step-' + side + '-' + i,
-      18,
-      (i + 1) * 0.125,
-      side * (18.625 - i * 0.75),
-      4,
-      (i + 1) * 0.25,
-      0.75,
-      trim,
-      'stone',
-    );
+  blocks.push({
+    id: 'gallery-ramp-' + side,
+    shape: 'ramp',
+    position: { x: 18, y: 1.5, z: side * 14.5 },
+    size: { x: 9, y: 3, z: 4 },
+    yaw: (side * Math.PI) / 2,
+    color: trim,
+    surface: 'stone',
+  });
 box('north-market-cover', -17, 0.7, -20, 3, 1.4, 2, teal, 'metal');
 box('north-east-cover', 24, 1.15, -22, 3, 2.3, 2, clay, 'stone');
 box('north-west-screen', -27, 1.5, -21, 0.6, 3, 7);
@@ -113,7 +110,7 @@ export const SANDGATE: MapDefinition = withSupplyCrates({
   id: 'sandgate',
   name: 'Sandgate',
   description:
-    'Пустынный рынок вокруг фонтана: крытый базар с боковыми выходами, восточная галерея с двумя лестницами и проходом снизу, северные ворота.',
+    'Пустынный рынок вокруг фонтана: крытый базар с боковыми выходами, восточная галерея с двумя пандусами и проходом снизу, северные ворота.',
   navigationHeights: [2.5, 4.9],
   upperLevel: 2.7,
   zones: [

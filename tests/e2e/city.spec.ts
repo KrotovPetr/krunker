@@ -62,7 +62,7 @@ test('rebuilt Bastion has an open street below the gallery and safe map changes'
   await page.locator('#leave').click();
   expect(errors).toEqual([]);
 });
-test('depot stairs reach the upper terrace', async ({ page }) => {
+test('depot ramp reaches the upper terrace', async ({ page }) => {
   const coordinate = async (axis: string) =>
     Number(await page.locator('#movement-hud').getAttribute('data-' + axis));
   const stop = async (key: string) => {

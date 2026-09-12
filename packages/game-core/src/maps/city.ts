@@ -113,7 +113,7 @@ for (const side of [-1, 1]) {
   );
 }
 box('gallery-screen', 0, 4.85, -3.4, 3.2, 1.7, 0.3, teal, 'metal');
-// Terrace rails leave the gallery and both stair landings open.
+// Terrace rails leave the gallery and both ramp landings open.
 box('depot-front-parapet', -20, 4.55, 3.2, 16, 1.1, 0.35);
 box('depot-north-parapet', -19, 4.55, -15.2, 18.6, 1.1, 0.35);
 box('depot-west-parapet', -28.2, 4.55, -6, 0.35, 1.1, 18.6);
@@ -126,34 +126,31 @@ box('station-west-rail', 9.8, 4.55, 5.1, 0.35, 1.1, 16.2);
 box('depot-roof-cover', -15, 4.75, -2.5, 2.4, 1.5, 1.4, dark, 'metal');
 box('station-roof-cover', 14, 4.75, 3, 2, 1.5, 1.4, dark, 'metal');
 
-for (let i = 0; i < 16; i++) {
-  box(
-    'depot-step-' + i,
-    -7,
-    (i + 1) * 0.125,
-    10 - i * 0.65,
-    3.4,
-    (i + 1) * 0.25,
-    0.65,
-    trim,
-    'stone',
-  );
-  box(
-    'station-step-' + i,
-    28.5,
-    (i + 1) * 0.125,
-    -16 + i * 0.65,
-    3.4,
-    (i + 1) * 0.25,
-    0.65,
-    trim,
-    'stone',
-  );
-}
+// The high ends meet the landing edges at exactly +4 m.
+blocks.push(
+  {
+    id: 'depot-ramp',
+    shape: 'ramp',
+    position: { x: -7, y: 2, z: 5.7 },
+    size: { x: 10.2, y: 4, z: 3.4 },
+    yaw: Math.PI / 2,
+    color: trim,
+    surface: 'stone',
+  },
+  {
+    id: 'station-ramp',
+    shape: 'ramp',
+    position: { x: 28.5, y: 2, z: -11.45 },
+    size: { x: 10.1, y: 4, z: 3.4 },
+    yaw: -Math.PI / 2,
+    color: trim,
+    surface: 'stone',
+  },
+);
 box('depot-landing', -9, 3.85, -0.6, 7.4, 0.3, 2.4, trim, 'paving');
-box('depot-stair-stop', -7, 2.25, -1.95, 3.4, 4.5, 0.3);
+box('depot-landing-stop', -7, 2.25, -1.95, 3.4, 4.5, 0.3);
 box('station-landing', 27, 3.85, -5.4, 6.4, 0.3, 2, trim, 'paving');
-box('station-stair-stop', 28.5, 2.25, -4.25, 3.4, 4.5, 0.3);
+box('station-landing-stop', 28.5, 2.25, -4.25, 3.4, 4.5, 0.3);
 
 // The tram street bends around solid cover. North and south are different spaces.
 box('tram-paving', -2, 0.06, 10, 8, 0.12, 24, 0xb6b5a9, 'paving');
@@ -167,6 +164,14 @@ for (const x of [4.2, 7.8])
 box('square-monument-base', 0, 0.4, -17, 5, 0.8, 4, trim, 'stone');
 box('square-monument', 0, 2.1, -17, 1.8, 3, 1.8, brick, 'stone');
 box('square-planter', 5, 0.6, -11, 3.8, 1.2, 1.8, stone, 'stone');
+// Offset service cabinets shelter opposite sides of A without closing the
+// central street or the mission switch at (2, -4). Inner faces remain in A.
+box('point-south-cabinet', -2.6, 1, -2.4, 2.4, 2, 0.65, teal, 'metal');
+box('point-south-cap', -2.6, 2.04, -2.4, 2.5, 0.08, 0.75, trim, 'metal');
+box('point-north-cabinet', 2.6, 1, -7.6, 2.4, 2, 0.65, teal, 'metal');
+box('point-north-cap', 2.6, 2.04, -7.6, 2.5, 0.08, 0.75, trim, 'metal');
+box('point-west-barrier', -6, 0.65, 0, 2.8, 1.3, 0.7, stone, 'stone');
+box('point-east-barrier', 6, 0.65, -10, 2.8, 1.3, 0.7, stone, 'stone');
 box('market-counter', -13, 0.65, 17, 4, 1.3, 2, teal, 'metal');
 box('market-awning', -13, 3.15, 17, 4.8, 0.2, 3, 0xbd8155, 'metal');
 for (const x of [-15, -11])
@@ -253,6 +258,38 @@ export const CITY: MapDefinition = withSupplyCrates({
     { id: 'depot-east', position: { x: -13, y: 0.16, z: -7 }, role: 'advance' },
     { id: 'station', position: { x: 18, y: 0.16, z: 4 }, role: 'guard' },
     { id: 'under-gallery', position: { x: 0, y: 0.03, z: -5 }, role: 'flank' },
+    {
+      id: 'point-south-shelter',
+      position: { x: -2.2, y: 0.03, z: -3.5 },
+      role: 'guard',
+    },
+    {
+      id: 'point-north-shelter',
+      position: { x: 2.2, y: 0.03, z: -6.5 },
+      role: 'guard',
+    },
+    { id: 'point-west', position: { x: -3, y: 0.03, z: -5.6 }, role: 'flank' },
+    { id: 'point-east', position: { x: 3, y: 0.03, z: -4.4 }, role: 'flank' },
+    {
+      id: 'point-south-entry',
+      position: { x: 0.2, y: 0.03, z: -2.5 },
+      role: 'advance',
+    },
+    {
+      id: 'point-north-entry',
+      position: { x: -0.2, y: 0.03, z: -7.8 },
+      role: 'advance',
+    },
+    {
+      id: 'point-west-watch',
+      position: { x: -6.5, y: 0.03, z: -1 },
+      role: 'overwatch',
+    },
+    {
+      id: 'point-east-watch',
+      position: { x: 6, y: 0.03, z: -9 },
+      role: 'overwatch',
+    },
     { id: 'market', position: { x: -18, y: 0.03, z: 15 }, role: 'flank' },
     { id: 'tram', position: { x: 2, y: 0.16, z: 10 }, role: 'advance' },
     { id: 'square', position: { x: 5, y: 0.03, z: -18 }, role: 'guard' },

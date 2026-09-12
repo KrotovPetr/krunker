@@ -10,6 +10,154 @@ import {
 import type { MapDefinition } from '../index.js';
 import { createBotBrain, createNavigation } from './brain.js';
 beforeAll(initializePhysics);
+it('keeps fighting when wounded but no reachable shelter exists', () => {
+  const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
+    world = createCollisionWorld(TEST_PAD);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'Guard' });
+    game.step(1 / 60);
+    const player = game.snapshot().players[0]!;
+    Object.assign(player, {
+      position: { x: 0, y: 0.03, z: 0 },
+      yaw: 0,
+      health: 20,
+      ready: true,
+      protectionRemaining: 0,
+    });
+    const enemy = {
+      ...structuredClone(player),
+      id: 'enemy',
+      position: { x: 0, y: 0.03, z: -10 },
+    };
+    const brain = createBotBrain(0),
+      nav = { ...createNavigation(TEST_PAD, world), positions: [] };
+    let shots = 0;
+    for (let tick = 0; tick < 90; tick++) {
+      const decision = brain.update(
+        player,
+        [enemy],
+        world,
+        nav,
+        'normal',
+        1 / 60,
+        tick,
+      );
+      expect(brain.intent().state).not.toBe('cover');
+      player.yaw = decision.input.yaw;
+      player.pitch = decision.input.pitch;
+      if (decision.fire) shots++;
+    }
+    expect(shots).toBeGreaterThan(0);
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
+it('does not remain rooted at the control point during a firefight', () => {
+  const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
+    world = createCollisionWorld(TEST_PAD);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'Guard' });
+    game.step(1 / 60);
+    const player = game.snapshot().players[0]!;
+    Object.assign(player, {
+      position: { x: 0, y: 0.03, z: 0 },
+      yaw: 0,
+      ready: true,
+      protectionRemaining: 0,
+    });
+    const enemy = {
+      ...structuredClone(player),
+      id: 'enemy',
+      position: { x: 0, y: 0.03, z: -10 },
+    };
+    const brain = createBotBrain(1),
+      nav = createNavigation(TEST_PAD, world);
+    let moved = 0;
+    for (let tick = 0; tick < 300; tick++) {
+      const decision = brain.update(
+        player,
+        [enemy],
+        world,
+        nav,
+        'normal',
+        1 / 60,
+        tick,
+        {
+          team: 'defenders',
+          directive: {
+            key: 'control-point:capture',
+            position: { x: 0, y: 0.03, z: 0 },
+            radius: 2.5,
+            tactical: 'capture',
+          },
+        },
+      );
+      Object.assign(
+        player,
+        predictPlayerMovement(player, decision.input, 1 / 60, world),
+      );
+      moved = Math.max(moved, Math.hypot(player.position.x, player.position.z));
+    }
+    expect(moved).toBeGreaterThan(0.5);
+    expect(Math.hypot(player.position.x, player.position.z)).toBeLessThan(3);
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
+it('watches its surroundings after arriving at the control point', () => {
+  const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
+    world = createCollisionWorld(TEST_PAD);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'Guard' });
+    game.step(1 / 60);
+    const player = game.snapshot().players[0]!;
+    Object.assign(player, {
+      position: { x: 0, y: 0.03, z: 5 },
+      yaw: 0,
+      ready: true,
+      protectionRemaining: 0,
+    });
+    const enemy = {
+      ...structuredClone(player),
+      id: 'enemy',
+      position: { x: 0, y: 0.03, z: 10 },
+    };
+    const brain = createBotBrain(0),
+      nav = createNavigation(TEST_PAD, world);
+    let shots = 0;
+    for (let tick = 0; tick < 600; tick++) {
+      const decision = brain.update(
+        player,
+        [enemy],
+        world,
+        nav,
+        'normal',
+        1 / 60,
+        tick,
+        {
+          team: 'defenders',
+          directive: {
+            key: 'control-point:capture',
+            position: { x: 0, y: 0.03, z: 0 },
+            radius: 2.5,
+            tactical: 'capture',
+          },
+        },
+      );
+      Object.assign(
+        player,
+        predictPlayerMovement(player, decision.input, 1 / 60, world),
+      );
+      if (decision.fire) shots++;
+    }
+    expect(shots).toBeGreaterThan(0);
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
 it('reaches ordered positions, holds them, follows a moved destination and bounds replanning', () => {
   const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
     world = createCollisionWorld(TEST_PAD);

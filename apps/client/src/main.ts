@@ -136,6 +136,7 @@ function sendInput() {
   presentation?.input(command);
   connection.send(command);
 }
+const selfDestructHint = element('#self-destruct-hint');
 scene?.onFrame((dt) => {
   gameUI.frame(
     controls?.scoreboard ?? false,
@@ -147,6 +148,26 @@ scene?.onFrame((dt) => {
   shotCooldown = Math.max(0, shotCooldown - dt);
   const alpha = stepper.advance(dt, sendInput);
   const actions = controls.actions();
+  const destructProgress = controls.selfDestructProgress;
+  const destructAllowed =
+    local?.ready &&
+    local.health > 0 &&
+    latest &&
+    (latest.phase === 'active' ||
+      (latest.phase === 'waiting' &&
+        (latest.mode === 'training' || latest.mode === 'parkour'))) &&
+    !(
+      latest.mode === 'mission' &&
+      ['departing', 'complete', 'failed'].includes(latest.mission?.stage ?? '')
+    );
+  selfDestructHint.hidden = !destructAllowed || destructProgress <= 0;
+  if (!selfDestructHint.hidden) {
+    const text = `Самоуничтожение через ${(1.5 * (1 - destructProgress)).toFixed(1)} с · отпусти K для отмены`;
+    if (selfDestructHint.textContent !== text)
+      selfDestructHint.textContent = text;
+  }
+  if (actions.selfDestruct && destructAllowed)
+    connection.send({ type: 'selfDestruct' });
   if (actions.order)
     connection.send({
       type: 'squadOrder',

@@ -83,7 +83,7 @@ it.each([
     endX: 25,
   },
 ])(
-  'climbs the $name stair and steps onto its terrace',
+  'climbs the $name ramp and walks onto its terrace',
   ({ x, z, yaw, turn, endX }) => {
     const game = createGame(
       DEFAULT_CONFIG,
