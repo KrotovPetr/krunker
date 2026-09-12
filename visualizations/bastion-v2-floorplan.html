@@ -1,0 +1,625 @@
+<div id="bastion-v2-plan">
+  <div class="viz-controls" aria-label="Уровень карты">
+    <button
+      class="btn btn-primary"
+      type="button"
+      data-level="ground"
+      aria-pressed="true"
+    >
+      Первый этаж
+    </button>
+    <button class="btn" type="button" data-level="roof" aria-pressed="false">
+      Крыша
+    </button>
+  </div>
+  <p id="bastion-level-summary" aria-live="polite">
+    Путь операции: площадь → атриум → архив → эвакуация через служебный двор.
+  </p>
+  <svg
+    viewBox="0 0 700 620"
+    role="img"
+    aria-labelledby="bastion-plan-title bastion-plan-desc"
+  >
+    <title id="bastion-plan-title">Bastion v2, первый этаж</title>
+    <desc id="bastion-plan-desc">
+      Схематичный план новой версии Bastion с районами, маршрутами, укрытиями,
+      целями и скрытыми входами врагов.
+    </desc>
+    <defs>
+      <marker
+        id="bastion-main-arrow"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill="var(--viz-series-1)"></path>
+      </marker>
+      <marker
+        id="bastion-flank-arrow"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill="var(--viz-series-2)"></path>
+      </marker>
+      <marker
+        id="bastion-wave-arrow"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill="var(--red)"></path>
+      </marker>
+      <pattern
+        id="bastion-roof-hatch"
+        width="12"
+        height="12"
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(45)"
+      >
+        <line
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="12"
+          stroke="var(--border)"
+          stroke-width="3"
+        ></line>
+      </pattern>
+    </defs>
+
+    <g data-floor="ground">
+      <rect class="map-boundary" x="80" y="42" width="540" height="472"></rect>
+      <text class="compass" x="350" y="28">СЕВЕР</text>
+      <path class="compass-mark" d="M350 35 L342 48 L358 48 Z"></path>
+
+      <rect class="building" x="198" y="51" width="105" height="46"></rect>
+      <rect class="building" x="397" y="51" width="105" height="46"></rect>
+      <rect class="building" x="89" y="105" width="62" height="118"></rect>
+      <rect class="building" x="549" y="105" width="62" height="118"></rect>
+      <rect class="building" x="89" y="346" width="62" height="108"></rect>
+      <rect class="building" x="549" y="346" width="62" height="108"></rect>
+
+      <rect
+        class="zone zone-archive"
+        x="254"
+        y="102"
+        width="192"
+        height="104"
+      ></rect>
+      <text class="zone-name" x="330" y="132">АРХИВ</text>
+      <text class="zone-note" x="330" y="153">короткая дистанция</text>
+      <path class="inner-wall" d="M270 173 H335 V205 M430 173 H365 V205"></path>
+      <rect class="cover" x="284" y="116" width="26" height="36"></rect>
+      <rect class="cover" x="390" y="155" width="26" height="34"></rect>
+
+      <rect
+        class="zone zone-atrium"
+        x="244"
+        y="224"
+        width="212"
+        height="151"
+      ></rect>
+      <text class="zone-name" x="350" y="255">АТРИУМ</text>
+      <text class="zone-note" x="350" y="275">средняя дистанция</text>
+      <rect
+        class="cover cover-high"
+        x="276"
+        y="286"
+        width="34"
+        height="62"
+      ></rect>
+      <rect
+        class="cover cover-low"
+        x="392"
+        y="270"
+        width="34"
+        height="62"
+      ></rect>
+      <path
+        class="wall"
+        d="M244 224 H320 M380 224 H456 V280 M456 326 V375 H386 M326 375 H244 V328 M244 280 V224"
+      ></path>
+      <path class="inner-wall" d="M312 224 V250 H388 V224"></path>
+
+      <rect
+        class="zone zone-square"
+        x="204"
+        y="394"
+        width="292"
+        height="105"
+      ></rect>
+      <text class="zone-name" x="350" y="466">ПЛОЩАДЬ</text>
+      <circle class="fountain" cx="350" cy="425" r="25"></circle>
+      <rect
+        class="cover cover-low"
+        x="260"
+        y="416"
+        width="48"
+        height="20"
+      ></rect>
+      <rect
+        class="cover cover-high"
+        x="397"
+        y="446"
+        width="48"
+        height="22"
+      ></rect>
+
+      <rect
+        class="zone zone-cafe"
+        x="96"
+        y="263"
+        width="119"
+        height="82"
+      ></rect>
+      <text class="zone-name" x="155" y="295">КАФЕ</text>
+      <text class="zone-note" x="155" y="316">крытый фланг</text>
+      <path class="awning" d="M103 335 H207"></path>
+
+      <rect
+        class="zone zone-service"
+        x="485"
+        y="128"
+        width="119"
+        height="129"
+      ></rect>
+      <text class="zone-name" x="544" y="157">СЛУЖЕБНЫЙ ДВОР</text>
+      <rect class="van" x="520" y="194" width="35" height="53"></rect>
+      <rect class="cover" x="570" y="183" width="20" height="55"></rect>
+
+      <path
+        class="street-edge"
+        d="M151 105 H198 M502 105 H549 M151 454 H204 M496 454 H549"
+      ></path>
+      <text class="zone-note" x="174" y="82">северная улица</text>
+      <text class="zone-note" x="531" y="287">восточный переулок</text>
+      <text class="zone-note" x="165" y="242">западная улица</text>
+
+      <path
+        class="route main-route"
+        d="M350 499 L350 450 L350 375 L350 330 L350 224 L350 205 L350 184"
+      ></path>
+      <path
+        class="route main-route"
+        d="M368 184 C438 200 512 202 560 218"
+      ></path>
+      <path
+        class="route flank-route"
+        d="M286 485 C220 461 177 401 157 345 C136 278 157 214 254 174"
+      ></path>
+      <path
+        class="route flank-route"
+        d="M414 485 C507 447 568 373 544 257"
+      ></path>
+
+      <path class="wave-route" d="M112 68 C160 106 180 145 211 202"></path>
+      <path class="wave-route" d="M588 68 C543 97 519 111 500 140"></path>
+      <path class="wave-route" d="M103 487 C138 455 170 428 213 416"></path>
+      <path class="wave-route" d="M597 487 C565 454 532 432 490 418"></path>
+
+      <g aria-label="Цель A, удержание атриума">
+        <circle class="objective" cx="350" cy="309" r="18"></circle>
+        <text class="objective-label" x="350" y="316">A</text>
+      </g>
+      <g aria-label="Цель B, архив">
+        <circle class="objective" cx="350" cy="184" r="18"></circle>
+        <text class="objective-label" x="350" y="191">B</text>
+      </g>
+      <g aria-label="Цель C, эвакуация">
+        <circle class="objective extraction" cx="578" cy="235" r="18"></circle>
+        <text class="objective-label" x="578" y="242">C</text>
+      </g>
+
+      <g aria-label="Старт защитников">
+        <path class="player-spawn" d="M350 487 L338 508 H362 Z"></path>
+        <text class="spawn-label" x="350" y="535">СТАРТ ЗАЩИТЫ</text>
+      </g>
+      <g aria-label="Скрытые входы врагов">
+        <circle class="enemy-spawn" cx="101" cy="59" r="8"></circle>
+        <circle class="enemy-spawn" cx="599" cy="59" r="8"></circle>
+        <circle class="enemy-spawn" cx="96" cy="493" r="8"></circle>
+        <circle class="enemy-spawn" cx="604" cy="493" r="8"></circle>
+      </g>
+
+      <g aria-label="Лестницы на крышу">
+        <rect class="stairs" x="209" y="207" width="31" height="55"></rect>
+        <text class="stairs-label" x="224" y="241">↑</text>
+        <rect class="stairs" x="460" y="337" width="31" height="55"></rect>
+        <text class="stairs-label" x="475" y="371">↑</text>
+      </g>
+      <g aria-label="Ящики снабжения">
+        <rect class="supply" x="115" y="299" width="18" height="18"></rect>
+        <text class="supply-label" x="124" y="313">+</text>
+        <rect class="supply" x="501" y="222" width="18" height="18"></rect>
+        <text class="supply-label" x="510" y="236">+</text>
+      </g>
+    </g>
+
+    <g data-floor="roof" hidden>
+      <rect
+        class="map-boundary ghost"
+        x="80"
+        y="42"
+        width="540"
+        height="472"
+      ></rect>
+      <text class="compass" x="350" y="28">СЕВЕР</text>
+      <path class="compass-mark" d="M350 35 L342 48 L358 48 Z"></path>
+      <rect
+        class="ground-ghost"
+        x="244"
+        y="224"
+        width="212"
+        height="151"
+      ></rect>
+      <text class="zone-note" x="350" y="397">атриум под крышей</text>
+
+      <rect class="roof-floor" x="232" y="206" width="236" height="187"></rect>
+      <rect class="skylight" x="315" y="262" width="70" height="74"></rect>
+      <text class="zone-note" x="350" y="301">СВЕТОВОЙ</text>
+      <text class="zone-note" x="350" y="321">ПРОЁМ</text>
+      <path class="roof-divider" d="M350 206 V251 M350 347 V393"></path>
+
+      <text class="zone-name" x="286" y="380">ЗАПАД</text>
+      <text class="zone-name" x="414" y="230">ВОСТОК</text>
+      <rect class="roof-cover" x="247" y="273" width="32" height="79"></rect>
+      <rect class="roof-cover" x="421" y="240" width="32" height="79"></rect>
+
+      <path
+        class="sight-sector west-sector"
+        d="M262 282 L82 370 L82 194 Z"
+      ></path>
+      <path
+        class="sight-sector east-sector"
+        d="M438 306 L618 218 L618 394 Z"
+      ></path>
+      <text class="sector-label" x="144" y="283">сектор кафе</text>
+      <text class="sector-label" x="556" y="309">сектор двора</text>
+
+      <rect class="stairs" x="232" y="334" width="33" height="54"></rect>
+      <text class="stairs-label" x="248" y="367">↓</text>
+      <rect class="stairs" x="435" y="211" width="33" height="54"></rect>
+      <text class="stairs-label" x="451" y="244">↓</text>
+      <path class="retreat-route" d="M290 247 C268 268 255 302 249 335"></path>
+      <path class="retreat-route" d="M410 351 C434 327 448 292 451 265"></path>
+
+      <text class="zone-note" x="350" y="445">
+        Нет ящика патронов. За ресурсом нужно спуститься.
+      </text>
+    </g>
+  </svg>
+
+  <div class="plan-legend text-small">
+    <span><i class="legend-line legend-main"></i>основной путь</span>
+    <span><i class="legend-line legend-flank"></i>фланг</span>
+    <span><i class="legend-line legend-wave"></i>атака волны</span>
+    <span><i class="legend-dot legend-objective">A</i>цель</span>
+    <span><i class="legend-dot legend-enemy"></i>скрытый вход</span>
+    <span><i class="legend-box legend-cover"></i>укрытие</span>
+  </div>
+</div>
+
+<style>
+  #bastion-v2-plan {
+    width: 100%;
+    color: var(--foreground);
+  }
+  #bastion-v2-plan [hidden] {
+    display: none;
+  }
+  #bastion-v2-plan .viz-controls {
+    margin-bottom: 8px;
+  }
+  #bastion-level-summary {
+    margin: 6px 0 2px;
+    color: var(--muted-foreground);
+  }
+  #bastion-v2-plan svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 670px;
+  }
+  #bastion-v2-plan text {
+    fill: var(--foreground);
+    font-size: 18px;
+    text-anchor: middle;
+  }
+  #bastion-v2-plan .zone-name {
+    font-weight: 500;
+  }
+  #bastion-v2-plan .zone-note,
+  #bastion-v2-plan .spawn-label,
+  #bastion-v2-plan .sector-label {
+    fill: var(--muted-foreground);
+    font-size: 15px;
+  }
+  #bastion-v2-plan .map-boundary {
+    fill: color-mix(in srgb, var(--muted) 24%, transparent);
+    stroke: var(--border);
+    stroke-width: 2;
+  }
+  #bastion-v2-plan .ghost {
+    opacity: 0.55;
+  }
+  #bastion-v2-plan .compass-mark {
+    fill: var(--foreground);
+  }
+  #bastion-v2-plan .compass {
+    fill: var(--muted-foreground);
+    font-size: 14px;
+  }
+  #bastion-v2-plan .building {
+    fill: var(--muted);
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  #bastion-v2-plan .zone {
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  #bastion-v2-plan .zone-archive {
+    fill: color-mix(in srgb, var(--viz-series-2) 18%, transparent);
+  }
+  #bastion-v2-plan .zone-atrium {
+    fill: color-mix(in srgb, var(--viz-series-1) 18%, transparent);
+  }
+  #bastion-v2-plan .zone-square {
+    fill: color-mix(in srgb, var(--viz-series-4) 14%, transparent);
+  }
+  #bastion-v2-plan .zone-cafe,
+  #bastion-v2-plan .zone-service {
+    fill: color-mix(in srgb, var(--viz-series-3) 17%, transparent);
+  }
+  #bastion-v2-plan .wall,
+  #bastion-v2-plan .inner-wall {
+    fill: none;
+    stroke: var(--foreground);
+    stroke-linecap: square;
+  }
+  #bastion-v2-plan .wall {
+    stroke-width: 7;
+  }
+  #bastion-v2-plan .inner-wall {
+    stroke-width: 5;
+  }
+  #bastion-v2-plan .street-edge {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 3;
+    stroke-dasharray: 8 7;
+  }
+  #bastion-v2-plan .cover {
+    fill: color-mix(in srgb, var(--foreground) 28%, transparent);
+    stroke: var(--foreground);
+    stroke-width: 1;
+  }
+  #bastion-v2-plan .cover-low {
+    stroke-dasharray: 5 3;
+  }
+  #bastion-v2-plan .awning {
+    stroke: var(--viz-series-3);
+    stroke-width: 8;
+    stroke-dasharray: 12 7;
+  }
+  #bastion-v2-plan .fountain {
+    fill: color-mix(in srgb, var(--viz-series-4) 20%, transparent);
+    stroke: var(--viz-series-4);
+    stroke-width: 3;
+  }
+  #bastion-v2-plan .van {
+    fill: color-mix(in srgb, var(--viz-series-3) 30%, transparent);
+    stroke: var(--viz-series-3);
+    stroke-width: 2;
+  }
+  #bastion-v2-plan .route {
+    fill: none;
+    stroke-width: 5;
+  }
+  #bastion-v2-plan .main-route {
+    stroke: var(--viz-series-1);
+    marker-end: url(#bastion-main-arrow);
+  }
+  #bastion-v2-plan .flank-route {
+    stroke: var(--viz-series-2);
+    stroke-dasharray: 10 7;
+    marker-end: url(#bastion-flank-arrow);
+  }
+  #bastion-v2-plan .wave-route {
+    fill: none;
+    stroke: var(--red);
+    stroke-width: 3;
+    stroke-dasharray: 6 6;
+    marker-end: url(#bastion-wave-arrow);
+  }
+  #bastion-v2-plan .objective {
+    fill: var(--primary);
+    stroke: var(--primary-foreground);
+    stroke-width: 2;
+  }
+  #bastion-v2-plan .extraction {
+    fill: var(--viz-series-3);
+  }
+  #bastion-v2-plan .objective-label {
+    fill: var(--primary-foreground);
+    font-size: 20px;
+    font-weight: 500;
+  }
+  #bastion-v2-plan .player-spawn {
+    fill: var(--viz-series-2);
+  }
+  #bastion-v2-plan .enemy-spawn {
+    fill: var(--red);
+    stroke: var(--background);
+    stroke-width: 2;
+  }
+  #bastion-v2-plan .stairs {
+    fill: url(#bastion-roof-hatch);
+    stroke: var(--border);
+    stroke-width: 2;
+  }
+  #bastion-v2-plan .stairs-label {
+    font-size: 26px;
+    font-weight: 500;
+  }
+  #bastion-v2-plan .supply {
+    fill: var(--green);
+    stroke: var(--foreground);
+    stroke-width: 1;
+  }
+  #bastion-v2-plan .supply-label {
+    fill: var(--background);
+    font-size: 16px;
+    font-weight: 500;
+  }
+  #bastion-v2-plan .roof-floor {
+    fill: color-mix(in srgb, var(--viz-series-4) 18%, transparent);
+    stroke: var(--viz-series-4);
+    stroke-width: 3;
+  }
+  #bastion-v2-plan .ground-ghost {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 2;
+    stroke-dasharray: 7 7;
+  }
+  #bastion-v2-plan .skylight {
+    fill: var(--background);
+    stroke: var(--border);
+    stroke-width: 3;
+  }
+  #bastion-v2-plan .roof-divider,
+  #bastion-v2-plan .roof-cover {
+    stroke: var(--foreground);
+    stroke-width: 7;
+  }
+  #bastion-v2-plan .roof-cover {
+    fill: var(--muted);
+  }
+  #bastion-v2-plan .sight-sector {
+    stroke: none;
+    opacity: 0.16;
+  }
+  #bastion-v2-plan .west-sector {
+    fill: var(--viz-series-2);
+  }
+  #bastion-v2-plan .east-sector {
+    fill: var(--viz-series-3);
+  }
+  #bastion-v2-plan .retreat-route {
+    fill: none;
+    stroke: var(--viz-series-2);
+    stroke-width: 4;
+    stroke-dasharray: 8 6;
+  }
+  #bastion-v2-plan .plan-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 18px;
+    color: var(--muted-foreground);
+  }
+  #bastion-v2-plan .plan-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #bastion-v2-plan .legend-line {
+    width: 25px;
+    height: 4px;
+    display: inline-block;
+  }
+  #bastion-v2-plan .legend-main {
+    background: var(--viz-series-1);
+  }
+  #bastion-v2-plan .legend-flank {
+    background: var(--viz-series-2);
+  }
+  #bastion-v2-plan .legend-wave {
+    background: var(--red);
+  }
+  #bastion-v2-plan .legend-dot {
+    width: 20px;
+    height: 20px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    font-style: normal;
+  }
+  #bastion-v2-plan .legend-objective {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  #bastion-v2-plan .legend-enemy {
+    width: 13px;
+    height: 13px;
+    background: var(--red);
+  }
+  #bastion-v2-plan .legend-box {
+    width: 18px;
+    height: 13px;
+    display: inline-block;
+  }
+  #bastion-v2-plan .legend-cover {
+    background: color-mix(in srgb, var(--foreground) 28%, transparent);
+    border: 1px solid var(--foreground);
+  }
+  @media (max-width: 500px) {
+    #bastion-v2-plan text {
+      font-size: 25px;
+    }
+    #bastion-v2-plan .zone-note,
+    #bastion-v2-plan .spawn-label,
+    #bastion-v2-plan .sector-label {
+      display: none;
+    }
+    #bastion-v2-plan .compass {
+      font-size: 22px;
+    }
+    #bastion-v2-plan .plan-legend {
+      justify-content: flex-start;
+    }
+  }
+</style>
+
+<script>
+  (() => {
+    const root = document.getElementById('bastion-v2-plan');
+    const summary = root.querySelector('#bastion-level-summary');
+    const title = root.querySelector('#bastion-plan-title');
+    const copy = {
+      ground: {
+        title: 'Bastion v2, первый этаж',
+        summary:
+          'Путь операции: площадь → атриум → архив → эвакуация через служебный двор.',
+      },
+      roof: {
+        title: 'Bastion v2, крыша',
+        summary:
+          'Две независимые позиции контролируют разные сектора. Боеприпасов на крыше нет.',
+      },
+    };
+    root.querySelectorAll('[data-level]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const level = button.dataset.level;
+        root.querySelectorAll('[data-level]').forEach((item) => {
+          const selected = item === button;
+          item.setAttribute('aria-pressed', String(selected));
+          item.classList.toggle('btn-primary', selected);
+        });
+        root.querySelectorAll('[data-floor]').forEach((floor) => {
+          floor.toggleAttribute('hidden', floor.dataset.floor !== level);
+        });
+        title.textContent = copy[level].title;
+        summary.textContent = copy[level].summary;
+      });
+    });
+  })();
+</script>

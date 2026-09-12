@@ -6,6 +6,7 @@ import type { createNavigation, NavigationRoute } from './navigation.js';
 export type BotState =
   'patrol' | 'advance' | 'engage' | 'search' | 'cover' | 'resupply';
 export interface BotContext {
+  directive?: { key: string; position: Vec3; radius: number };
   team?: 'attackers' | 'defenders';
   occupied?: readonly Vec3[];
 }

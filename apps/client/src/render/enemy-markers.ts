@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { playerHeight } from '@fps/game-core';
 import type { GameSnapshot, PlayerSnapshot, Vec3 } from '@fps/protocol';
+import { isTeamMode } from '@fps/protocol';
 
 export function isEnemy(
   snapshot: GameSnapshot,
@@ -11,12 +12,12 @@ export function isEnemy(
     snapshot.phase === 'active' &&
     (snapshot.mode === 'arena' ||
       snapshot.mode === 'bots' ||
-      snapshot.mode === 'waves') &&
+      isTeamMode(snapshot.mode)) &&
     player.id !== localId &&
     player.health > 0 &&
     player.ready &&
     player.connected &&
-    (snapshot.mode !== 'waves' || (player.bot && !player.ally))
+    (!isTeamMode(snapshot.mode) || (player.bot && !player.ally))
   );
 }
 

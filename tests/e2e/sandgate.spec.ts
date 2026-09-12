@@ -1,4 +1,55 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function walkTo(page: Page, axis: 'x' | 'z', target: number) {
+  const coordinate = async () =>
+    Number(await page.locator('#movement-hud').getAttribute('data-' + axis));
+  const stop = async (key: string) => {
+    const tick = Number(
+      await page.locator('#movement-hud').getAttribute('data-tick'),
+    );
+    await page.keyboard.up(key);
+    await expect
+      .poll(
+        async () =>
+          Number(await page.locator('#movement-hud').getAttribute('data-tick')),
+        { intervals: [30] },
+      )
+      .toBeGreaterThanOrEqual(tick + 12);
+    await expect
+      .poll(async () => Number(await page.locator('#speed').textContent()), {
+        intervals: [40],
+      })
+      .toBeLessThan(0.1);
+  };
+  const initial = target - (await coordinate());
+  const keyFor = (delta: number) =>
+    axis === 'x' ? (delta > 0 ? 'd' : 'a') : delta > 0 ? 's' : 'w';
+  if (Math.abs(initial) > 2) {
+    const key = keyFor(initial);
+    await page.keyboard.down(key);
+    await expect
+      .poll(async () => Math.sign(initial) * (target - (await coordinate())), {
+        timeout: 9000,
+        intervals: [30],
+      })
+      .toBeLessThan(2);
+    await stop(key);
+  }
+  // Release before the corner, then tap to account for acceleration and braking.
+  for (let i = 0; i < 15; i++) {
+    const delta = target - (await coordinate());
+    if (Math.abs(delta) < 0.25) return;
+    const key = keyFor(delta);
+    await page.keyboard.down(key);
+    await page.waitForTimeout(Math.min(80, Math.max(17, Math.abs(delta) * 40)));
+    await stop(key);
+  }
+  expect(
+    Math.abs(target - (await coordinate())),
+    axis + ' destination ' + target,
+  ).toBeLessThan(0.25);
+}
+
 test.beforeEach(async ({ page, browserName }) => {
   test.skip(
     browserName === 'chromium',
@@ -14,93 +65,48 @@ test.beforeEach(async ({ page, browserName }) => {
     'sandgate',
   );
 });
-test('walks long A and the rear connection to B, with matching minimap and challenge reset', async ({
+test('walks under the gallery and climbs its north stair without crouching', async ({
   page,
 }) => {
+  test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.screenshot({ path: test.info().outputPath('sandgate-menu.png') });
+  await page.locator('#map-preview').click();
+  await page.screenshot({
+    path: test.info().outputPath('sandgate-overview.png'),
+  });
+  await page.keyboard.press('Escape');
   await page.locator('#play').click();
   await expect(page.locator('#app')).toHaveClass(/playing/);
-  await expect(page.locator('#location-name')).toHaveText('ПЛОЩАДЬ');
-  await page.screenshot({ path: test.info().outputPath('sandgate-plaza.png') });
-  await page.keyboard.down('d');
-  await expect
-    .poll(
-      async () =>
-        Number(await page.locator('#movement-hud').getAttribute('data-x')),
-      { intervals: [40] },
-    )
-    .toBeGreaterThan(19.5);
-  await page.keyboard.up('d');
-  await expect
-    .poll(async () => Number(await page.locator('#speed').textContent()))
-    .toBeLessThan(0.1);
-  await page.keyboard.down('w');
-  await expect
-    .poll(
-      async () =>
-        Number(await page.locator('#movement-hud').getAttribute('data-z')),
-      { timeout: 8000, intervals: [40] },
-    )
-    .toBeLessThan(-12);
-  await page.keyboard.up('w');
-  await expect
-    .poll(async () => Number(await page.locator('#speed').textContent()))
-    .toBeLessThan(0.1);
-  await expect(page.locator('#minimap-canvas')).toHaveAttribute(
-    'data-zone',
-    'A',
+  const coordinate = async (axis: string) =>
+    Number(await page.locator('#movement-hud').getAttribute('data-' + axis));
+  await page.screenshot({
+    path: test.info().outputPath('sandgate-fountain.png'),
+  });
+  await walkTo(page, 'x', 14.5);
+  await walkTo(page, 'z', 0);
+  expect(await coordinate('y')).toBeLessThan(0.2);
+  await expect(page.locator('#movement-hud')).toHaveAttribute(
+    'data-crouched',
+    'false',
   );
-  await page.screenshot({ path: test.info().outputPath('sandgate-a.png') });
-  // Pass the crates on their east side before taking the northern connector.
-  await page.keyboard.down('d');
-  await expect
-    .poll(
-      async () =>
-        Number(await page.locator('#movement-hud').getAttribute('data-x')),
-      { intervals: [40] },
-    )
-    .toBeGreaterThan(25);
-  await page.keyboard.up('d');
-  await expect
-    .poll(async () => Number(await page.locator('#speed').textContent()))
-    .toBeLessThan(0.1);
-  // Cross north of the supply crates, south of the rear-street cover.
-  // Start crouching from rest to avoid triggering a slide into that cover.
-  await page.keyboard.down('Shift');
-  await page.keyboard.down('w');
-  await expect
-    .poll(
-      async () =>
-        Number(await page.locator('#movement-hud').getAttribute('data-z')),
-      { intervals: [40] },
-    )
-    .toBeLessThan(-23.8);
-  await page.keyboard.up('w');
-  await expect
-    .poll(async () => Number(await page.locator('#speed').textContent()))
-    .toBeLessThan(0.1);
-  await page.keyboard.up('Shift');
-  await page.keyboard.down('a');
-  await expect
-    .poll(
-      async () =>
-        Number(await page.locator('#movement-hud').getAttribute('data-x')),
-      { timeout: 9000, intervals: [40] },
-    )
-    .toBeLessThan(-20);
-  await page.keyboard.up('a');
+  await page.screenshot({
+    path: test.info().outputPath('sandgate-arcade.png'),
+  });
+  await walkTo(page, 'z', -20);
+  await walkTo(page, 'x', 17.7);
+  await walkTo(page, 'z', -6);
+  expect(await coordinate('y')).toBeGreaterThan(2.9);
   await expect(page.locator('#minimap-canvas')).toHaveAttribute(
     'data-zone',
-    'B',
+    'ГАЛЕРЕЯ',
   );
   await page.evaluate(() =>
-    document.dispatchEvent(
-      new MouseEvent('mousemove', { movementX: 1570, movementY: 0 }),
-    ),
+    document.dispatchEvent(new MouseEvent('mousemove', { movementX: -785 })),
   );
-  await page.screenshot({ path: test.info().outputPath('sandgate-b.png') });
+  await page.screenshot({
+    path: test.info().outputPath('sandgate-gallery.png'),
+  });
   await page.keyboard.press('Escape');
   await page.locator('#mode-select').selectOption('training');
   await expect(page.locator('#scene canvas')).toHaveAttribute(
@@ -109,6 +115,26 @@ test('walks long A and the rear connection to B, with matching minimap and chall
   );
   await page.locator('#leave').click();
   expect(errors).toEqual([]);
+});
+
+test('crosses the covered market through its staggered stalls', async ({
+  page,
+}) => {
+  await page.locator('#play').click();
+  await expect(page.locator('#app')).toHaveClass(/playing/);
+  await walkTo(page, 'x', -18.7);
+  await walkTo(page, 'z', 0.7);
+  await page.screenshot({
+    path: test.info().outputPath('sandgate-market.png'),
+  });
+  await walkTo(page, 'x', -20.5);
+  await walkTo(page, 'z', -15);
+  await expect(page.locator('#movement-hud')).toHaveAttribute(
+    'data-crouched',
+    'false',
+  );
+  await page.keyboard.press('Escape');
+  await page.locator('#leave').click();
 });
 test('shows small enemy markers in defense and clears them when changing mode', async ({
   page,

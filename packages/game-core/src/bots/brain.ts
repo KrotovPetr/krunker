@@ -41,6 +41,7 @@ export function createBotBrain(id: number) {
   let avoid: Vec3 | undefined,
     avoidRemaining = 0;
   const excluded = new Map<string, number>();
+  let directiveKey = '';
   const settings = {
     easy: { reaction: 0.95, error: 0.05, turn: 1.3 },
     normal: { reaction: 0.7, error: 0.027, turn: 1.8 },
@@ -174,6 +175,14 @@ export function createBotBrain(id: number) {
         state = desiredState;
         clearGoal();
       }
+      const directive =
+        state !== 'cover' && state !== 'resupply'
+          ? context.directive
+          : undefined;
+      if ((directive?.key ?? '') !== directiveKey) {
+        directiveKey = directive?.key ?? '';
+        clearGoal();
+      }
       // Progress is measured between waypoints, not by distance walked. Running
       // circles or retrying the same path cannot reset this timer.
       if (moving && path[0]) {
@@ -205,9 +214,19 @@ export function createBotBrain(id: number) {
         target?.position ?? threat ?? player.position,
       );
       const preferred = preferredRange(player);
-      const mustMove =
-        state !== 'engage' || range > preferred || range < preferred * 0.45;
-      if (!path.length && goal) {
+      const mustMove = directive
+        ? distance(player.position, directive.position) > directive.radius
+        : state !== 'engage' || range > preferred || range < preferred * 0.45;
+      if (
+        directive &&
+        goal &&
+        replan <= 0 &&
+        distance(goal.position, directive.position) > 2
+      )
+        clearGoal();
+      if (directive && goal && !path.length && mustMove && replan <= 0)
+        clearGoal();
+      if (!path.length && goal && !directive) {
         if (
           distance(player.position, goal.position) <
           (state === 'resupply' ? 0.3 : 1)
@@ -224,7 +243,25 @@ export function createBotBrain(id: number) {
       }
       if (mustMove && replan <= 0 && !goal) {
         const blocked = new Set(excluded.keys());
-        if (state === 'resupply') {
+        if (directive) {
+          const offsets = [
+            [-0.7, 0.5],
+            [0.7, 0.5],
+            [0, -0.7],
+          ];
+          const [dx, dz] = offsets[id % offsets.length]!;
+          const spread = {
+            ...directive.position,
+            x: directive.position.x + dx!,
+            z: directive.position.z + dz!,
+          };
+          const destination = world.canOccupy(spread, 1.8)
+            ? spread
+            : directive.position;
+          const route = navigation.plan(player.position, destination, avoid);
+          if (route)
+            goal = { key: directive.key, position: route.destination, route };
+        } else if (state === 'resupply') {
           const supply = navigation.supply(player.position, avoid);
           const key = supply ? 'supply:' + supply.x + ':' + supply.z : '';
           const route =
@@ -236,17 +273,18 @@ export function createBotBrain(id: number) {
           const route = navigation.plan(player.position, threat, avoid);
           if (route) goal = { key: 'last-seen', position: threat, route };
         }
-        goal ??= choosePosition(
-          player,
-          navigation,
-          world,
-          state,
-          cursor,
-          blocked,
-          context,
-          threat,
-          avoid,
-        );
+        if (!directive)
+          goal ??= choosePosition(
+            player,
+            navigation,
+            world,
+            state,
+            cursor,
+            blocked,
+            context,
+            threat,
+            avoid,
+          );
         if (goal) {
           path = [...goal.route.waypoints];
           bestWaypointDistance = Infinity;
@@ -309,7 +347,12 @@ export function createBotBrain(id: number) {
           input.buttons.jump = true;
           jumpCooldown = 1;
         }
-      } else if (canSee && state === 'engage') {
+      } else if (
+        !directive &&
+        canSee &&
+        state === 'engage' &&
+        player.weapon !== 'lmg'
+      ) {
         const strafe = Math.sin(tick / 65 + id * 2);
         input.buttons.left =
           id % 3 !== 0 && player.weapon !== 'sniper' && strafe < -0.4;

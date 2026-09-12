@@ -1,4 +1,5 @@
 import { visible } from '../bots/brain.js';
+import { copyPlayer, copyInput } from './copy-state.js';
 import { challengeInput } from '../training/challenges.js';
 import type {
   GameSnapshot,
@@ -10,7 +11,7 @@ import { TICK_RATE } from '@fps/protocol';
 import { createCollisionWorld } from '../movement/collision-world.js';
 import type { MapDefinition } from '../maps/arena.js';
 import { predictPlayerMovement } from '../movement/controller.js';
-import { WEAPONS, FIREARMS, equippedWeapon } from '../combat/weapons.js';
+import { WEAPONS, FIREARMS, equippedFirearm } from '../combat/weapons.js';
 
 export function createPrediction(map: MapDefinition) {
   const world = createCollisionWorld(map);
@@ -28,7 +29,7 @@ export function createPrediction(map: MapDefinition) {
       1 / TICK_RATE,
       world,
       WEAPONS[player.weapon].speed,
-      FIREARMS[equippedWeapon(player)].aimSeconds,
+      FIREARMS[equippedFirearm(player)].aimSeconds,
     ),
   });
   return {
@@ -48,7 +49,7 @@ export function createPrediction(map: MapDefinition) {
         pending = pending.filter(
           (input) => input.seq > authoritative.lastProcessedInput,
         );
-      state = structuredClone(authoritative);
+      state = copyPlayer(authoritative);
       for (const input of pending) state = apply(state, input);
     },
     push(input: InputCommand) {
@@ -60,11 +61,11 @@ export function createPrediction(map: MapDefinition) {
         pending.length >= 120
       )
         return;
-      pending.push(structuredClone(input));
+      pending.push(copyInput(input));
       state = apply(state, input);
     },
     state() {
-      return state && structuredClone(state);
+      return state && copyPlayer(state);
     },
     get pendingCount() {
       return pending.length;
@@ -101,7 +102,7 @@ export function interpolateSnapshots(
         previous.health <= 0 ||
         player.health <= 0
       )
-        return structuredClone(player);
+        return copyPlayer(player);
       const position = { ...player.position };
       for (const axis of ['x', 'y', 'z'] as const)
         position[axis] =

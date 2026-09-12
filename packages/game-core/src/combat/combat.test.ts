@@ -11,7 +11,7 @@ import type {
   ClientCommand,
   GameEvent,
   PlayerSnapshot,
-  WeaponId,
+  SelectableWeaponId,
 } from '@fps/protocol';
 
 beforeAll(initializePhysics);
@@ -46,7 +46,7 @@ const command = (game: Game, id: string, value: ClientCommand) =>
 const player = (game: Game, id: string) =>
   game.snapshot().players.find((p) => p.id === id)!;
 function setup(
-  weapon: WeaponId = 'rifle',
+  weapon: SelectableWeaponId = 'rifle',
   config: Partial<GameConfig> = {},
   arena = map,
 ) {
@@ -87,6 +87,37 @@ function fire(game: Game, id = 'a', knife = false, head = false, seq = 1) {
 }
 
 describe('server combat', () => {
+  it('sniper body hit leaves a healthy opponent alive, and a second shot finishes them', () => {
+    const game = setup('sniper');
+    expect(fire(game).some((e) => e.type === 'kill')).toBe(false);
+    expect(player(game, 'b').health).toBe(15);
+    step(game, 66);
+    expect(
+      fire(game, 'a', false, false, 2).some((e) => e.type === 'kill'),
+    ).toBe(true);
+  });
+  it('medkits wait three seconds after damage and share a personal cooldown', () => {
+    const game = setup(
+      'rifle',
+      {},
+      { ...map, medkits: [{ x: 1, y: 0.6, z: -5 }] },
+    );
+    fire(game);
+    expect(player(game, 'b').health).toBe(76);
+    expect(player(game, 'b').healthCooldown).toBe(3);
+    expect(step(game, 179).some((e) => e.type === 'healed')).toBe(false);
+    const events = step(game, 2);
+    expect(events).toContainEqual({
+      type: 'healed',
+      playerId: 'b',
+      amount: 24,
+    });
+    expect(player(game, 'b').health).toBe(100);
+    fire(game, 'a', false, false, 2);
+    expect(player(game, 'b').health).toBe(76);
+    expect(step(game, 181).some((e) => e.type === 'healed')).toBe(false);
+    expect(player(game, 'b').health).toBe(76);
+  });
   it('applies rifle damage once and enforces cooldown and magazine', () => {
     const game = setup();
     fire(game);
@@ -118,9 +149,18 @@ describe('server combat', () => {
     expect(player(game, 'a').ammo).toBe(30);
     expect(player(game, 'a').reloadRemaining).toBe(0);
   });
-  it('sniper kills in the body, scores once, rejects dead fire and respawns', () => {
+  it('sniper headshot kills, scores once, rejects dead fire and respawns', () => {
     const game = setup('sniper', { respawnSeconds: 0.5 });
-    expect(fire(game).filter((e) => e.type === 'kill')).toHaveLength(1);
+    const kill = fire(game, 'a', false, true).find((e) => e.type === 'kill');
+    expect(kill).toMatchObject({
+      type: 'kill',
+      weapon: 'sniper',
+      headshot: true,
+      attackerAirborne: false,
+      victimAirborne: false,
+      noScope: true,
+    });
+    expect(kill?.type === 'kill' && kill.distance).toBeCloseTo(5, 1);
     expect(player(game, 'a').kills).toBe(1);
     expect(player(game, 'b').deaths).toBe(1);
     const life = player(game, 'b').lifeId;
@@ -132,6 +172,30 @@ describe('server combat', () => {
     expect(
       Math.hypot(player(game, 'b').position.z - player(game, 'a').position.z),
     ).toBeGreaterThan(4);
+  });
+  it('reports headshots and airborne players in kill events', () => {
+    const game = setup('sniper');
+    for (const [index, id] of ['a', 'b'].entries())
+      command(game, id, {
+        type: 'input',
+        seq: index + 1,
+        yaw: 0,
+        pitch: 0,
+        buttons: { ...EMPTY_BUTTONS, jump: true },
+      });
+    step(game);
+    expect(player(game, 'a').grounded).toBe(false);
+    expect(player(game, 'b').grounded).toBe(false);
+    const kill = fire(game, 'a', false, true, 3).find(
+      (event) => event.type === 'kill',
+    );
+    expect(kill).toMatchObject({
+      type: 'kill',
+      headshot: true,
+      attackerAirborne: true,
+      victimAirborne: true,
+      noScope: true,
+    });
   });
   it('does not shoot through static cover', () => {
     const game = setup(
@@ -215,11 +279,13 @@ describe('server combat', () => {
         ...(rewind ? { viewTick: before.tick - 1 } : {}),
       });
       step(game);
-      expect(player(game, 'b').health).toBe(rewind ? 0 : 100);
+      expect(player(game, 'b').health).toBe(rewind ? 15 : 100);
     }
   });
   it('knife has limited reach and consumes no ammunition', () => {
     const far = setup();
+    command(far, 'a', { type: 'selectSlot', slot: 'knife' });
+    step(far, 15);
     fire(far, 'a', true);
     expect(player(far, 'b').health).toBe(100);
     const near = setup(
@@ -227,9 +293,22 @@ describe('server combat', () => {
       {},
       { ...map, spawns: [map.spawns[0]!, { x: 0, y: 0.03, z: -1.5 }] },
     );
+    // A forged quick-stab command cannot bypass the selected firearm.
+    expect(fire(near, 'a', true).some((e) => e.type === 'shot')).toBe(false);
+    command(near, 'a', { type: 'selectSlot', slot: 'knife' });
+    step(near, 15);
     fire(near, 'a', true);
     expect(player(near, 'b').health).toBe(35);
     expect(player(near, 'a').ammo).toBe(30);
+    step(near, 60);
+    expect(player(near, 'a').slot).toBe('knife');
+    command(near, 'a', { type: 'reload' });
+    step(near);
+    expect(player(near, 'a').reloadRemaining).toBe(0);
+    expect(fire(near, 'a', true, false, 2).some((e) => e.type === 'kill')).toBe(
+      true,
+    );
+    expect(player(near, 'a').slot).toBe('knife');
   });
   it('keeps the full three-second shield even when firing', () => {
     const game = setup('sniper', { protectionSeconds: 3 });
@@ -238,13 +317,13 @@ describe('server combat', () => {
     expect(player(game, 'a').protectionRemaining).toBeGreaterThan(2.7);
     fire(game, 'b');
     expect(player(game, 'b').protectionRemaining).toBeGreaterThan(2.7);
-    expect(player(game, 'a').health).toBe(90);
+    expect(player(game, 'a').health).toBe(100);
     step(game, 170);
     expect(player(game, 'a').protectionRemaining).toBe(0);
     fire(game, 'b', false, false, 2);
-    expect(player(game, 'a').health).toBeLessThan(90);
+    expect(player(game, 'a').health).toBeLessThan(100);
   });
-  it.each(['smg', 'revolver'] as const)(
+  it.each(['smg', 'sapper'] as const)(
     'supports %s damage, independent ammunition and cooldown',
     (weapon) => {
       const game = setup(weapon);

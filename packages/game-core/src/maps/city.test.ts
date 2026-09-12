@@ -10,47 +10,117 @@ import {
 } from '../index.js';
 import { createNavigation, visible } from '../bots/brain.js';
 import type { ClientCommand } from '@fps/protocol';
-
 beforeAll(initializePhysics);
-it('has eight unobstructed spawns and all four entrances are open at standing height', () => {
+
+it('opens both buildings and keeps the street below the gallery clear', () => {
   const world = createCollisionWorld(CITY);
   try {
-    for (const point of CITY.spawns)
-      expect(world.canOccupy(point, 1.8), JSON.stringify(point)).toBe(true);
     for (const point of [
-      { x: 0, y: 0.16, z: 8 },
-      { x: 0, y: 0.16, z: -8 },
-      { x: -9, y: 0.16, z: 0 },
-      { x: 9, y: 0.16, z: 0 },
+      ...CITY.spawns,
+      ...CITY.tacticalPositions!.map((p) => p.position),
+      ...CITY.defense!.players,
     ])
-      expect(world.canOccupy(point, 1.8)).toBe(true);
+      expect(world.canOccupy(point, 1.8), JSON.stringify(point)).toBe(true);
+    for (const [x, z] of [
+      [-19, -15],
+      [-19, 3],
+      [-10, -7],
+      [18, -7],
+      [18, 13],
+      [10, 4],
+      [0, -5],
+    ] as const)
+      expect(world.canOccupy({ x, y: 0.16, z }, 1.8), x + ',' + z).toBe(true);
     expect(
-      visible(world, { x: 0, y: 1.8, z: 15 }, { x: 0, y: 1.8, z: 0 }),
+      visible(world, { x: 0, y: 1.8, z: 0 }, { x: 0, y: 1.8, z: -10 }),
     ).toBe(true);
     expect(
-      visible(world, { x: 3, y: 1.8, z: 15 }, { x: 3, y: 1.8, z: 0 }),
+      visible(world, { x: -3, y: 1.8, z: 20 }, { x: -3, y: 1.8, z: 0 }),
     ).toBe(false);
   } finally {
     world.dispose();
   }
 });
-it('connects streets, the atrium and the roof in bot navigation', () => {
+it('connects all wave entrances to every tactical position and conceals initial spawns', () => {
   const world = createCollisionWorld(CITY);
   try {
-    const navigation = createNavigation(CITY, world);
-    const street = { x: 0, y: 0.16, z: 15 },
-      hall = { x: 0, y: 0.16, z: 0 },
-      roof = { x: 5, y: 4.83, z: -5 };
-    const hallPath = navigation.path(street, hall),
-      roofPath = navigation.path(street, roof);
-    expect(hallPath.length).toBeGreaterThan(2);
-    expect(hallPath.at(-1)!.y).toBeLessThan(1);
-    expect(roofPath.length).toBeGreaterThan(5);
-    expect(roofPath.at(-1)!.y).toBeGreaterThan(4.5);
+    const nav = createNavigation(CITY, world);
+    for (const gate of CITY.defense!.enemies) {
+      expect(world.canOccupy(gate, 1.8)).toBe(true);
+      for (const defender of CITY.defense!.players)
+        expect(
+          visible(
+            world,
+            { ...defender, y: defender.y + 1.65 },
+            { ...gate, y: gate.y + 1.65 },
+          ),
+          JSON.stringify({ gate, defender }),
+        ).toBe(false);
+      for (const point of CITY.tacticalPositions!)
+        expect(
+          nav.plan(gate, point.position),
+          JSON.stringify({ gate, point: point.id }),
+        ).toBeDefined();
+    }
+    const crossing = nav.path(
+      { x: -14, y: 4.03, z: -5 },
+      { x: 14, y: 4.03, z: -5 },
+    );
+    expect(crossing.length).toBeGreaterThan(5);
+    expect(crossing.every((p) => p.y > 3.8)).toBe(true);
   } finally {
     world.dispose();
   }
 });
+it.each([
+  { name: 'depot', x: -7, z: 12, yaw: 0, turn: Math.PI / 2, endX: -11 },
+  {
+    name: 'station',
+    x: 28.5,
+    z: -18,
+    yaw: Math.PI,
+    turn: Math.PI / 2,
+    endX: 25,
+  },
+])(
+  'climbs the $name stair and steps onto its terrace',
+  ({ x, z, yaw, turn, endX }) => {
+    const game = createGame(
+      DEFAULT_CONFIG,
+      { ...CITY, spawns: [{ x, y: 0.16, z }, ...CITY.spawns.slice(1)] },
+      0,
+    );
+    try {
+      game.enqueue({ type: 'join', playerId: 'host', nickname: 'Walker' });
+      game.step(1 / 60);
+      let seq = 0;
+      const walk = (angle: number, ticks: number) => {
+        for (let i = 0; i < ticks; i++) {
+          game.enqueue({
+            type: 'playerCommand',
+            playerId: 'host',
+            command: {
+              type: 'input',
+              seq: ++seq,
+              yaw: angle,
+              pitch: 0,
+              buttons: { ...EMPTY_BUTTONS, forward: true },
+            },
+          });
+          game.step(1 / 60);
+        }
+      };
+      walk(yaw, 240);
+      expect(game.snapshot().players[0]!.position.y).toBeGreaterThan(3.9);
+      walk(turn, 50);
+      const position = game.snapshot().players[0]!.position;
+      expect(position.x).toBeLessThan(endX);
+      expect(position.y).toBeGreaterThan(3.9);
+    } finally {
+      game.dispose();
+    }
+  },
+);
 it('switches the authoritative map, resets lives and uses the new collisions', () => {
   const game = createGame(DEFAULT_CONFIG, ARENA, 0);
   const send = (command: ClientCommand, playerId = 'host') =>
@@ -70,7 +140,7 @@ it('switches the authoritative map, resets lives and uses the new collisions', (
     game.step(1 / 60);
     expect(game.snapshot().mapId).toBe('bastion');
     expect(game.snapshot().players[0]!.lifeId).toBeGreaterThan(life);
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 160; i++) {
       send({
         type: 'input',
         seq: i + 1,
@@ -91,45 +161,6 @@ it('switches the authoritative map, resets lives and uses the new collisions', (
     game.step(1 / 60);
     expect(game.snapshot().mode).toBe('arena');
     expect(game.snapshot().mapId).toBe('bastion');
-  } finally {
-    game.dispose();
-  }
-});
-it('lets a player climb the external stairs and step onto the roof', () => {
-  const map = {
-    ...CITY,
-    spawns: [{ x: 11.5, y: 0.03, z: 8 }, ...CITY.spawns.slice(1)],
-  };
-  const game = createGame(DEFAULT_CONFIG, map, 0);
-  const send = (command: ClientCommand) =>
-    game.enqueue({ type: 'playerCommand', playerId: 'host', command });
-  try {
-    game.enqueue({ type: 'join', playerId: 'host', nickname: 'Host' });
-    game.step(1 / 60);
-    let seq = 0;
-    for (let i = 0; i < 250; i++) {
-      send({
-        type: 'input',
-        seq: ++seq,
-        yaw: 0,
-        pitch: 0,
-        buttons: { ...EMPTY_BUTTONS, forward: true },
-      });
-      game.step(1 / 60);
-    }
-    expect(game.snapshot().players[0]!.position.y).toBeGreaterThan(4.7);
-    for (let i = 0; i < 35; i++) {
-      send({
-        type: 'input',
-        seq: ++seq,
-        yaw: Math.PI / 2,
-        pitch: 0,
-        buttons: { ...EMPTY_BUTTONS, forward: true },
-      });
-      game.step(1 / 60);
-    }
-    expect(game.snapshot().players[0]!.position.x).toBeLessThan(9);
-    expect(game.snapshot().players[0]!.position.y).toBeGreaterThan(4.7);
   } finally {
     game.dispose();
   }
@@ -156,7 +187,7 @@ it('bots fight in Bastion and a running human match rejects map changes', () => 
     expect(kills).toBeGreaterThan(0);
     for (const p of game.snapshot().players) {
       expect(p.position.y).toBeGreaterThan(-1);
-      expect(Math.abs(p.position.x)).toBeLessThan(28);
+      expect(Math.abs(p.position.x)).toBeLessThan(32);
     }
     send({ type: 'setMode', mode: 'arena' });
     game.step(1 / 60);
@@ -173,47 +204,5 @@ it('bots fight in Bastion and a running human match rejects map changes', () => 
     expect(game.snapshot().mapId).toBe('bastion');
   } finally {
     game.dispose();
-  }
-});
-
-it('links the rear streets around both rows of city buildings', () => {
-  const world = createCollisionWorld(CITY);
-  try {
-    const navigation = createNavigation(CITY, world);
-    for (const side of [-1, 1]) {
-      const path = navigation.path(
-        { x: side * 30, y: 0.03, z: -20 },
-        { x: side * 30, y: 0.03, z: 20 },
-      );
-      expect(path.length).toBeGreaterThan(15);
-      expect(path.every((p) => world.canOccupy(p, 1.8))).toBe(true);
-    }
-  } finally {
-    world.dispose();
-  }
-});
-
-it('breaks the cross-hall spawn sightline and connects every wave gate to tactical positions', () => {
-  const world = createCollisionWorld(CITY);
-  try {
-    const nav = createNavigation(CITY, world);
-    expect(
-      visible(world, { x: 0, y: 1.8, z: 15 }, { x: 0, y: 1.8, z: -15 }),
-    ).toBe(false);
-    for (const gate of CITY.defense!.enemies) {
-      expect(world.canOccupy(gate, 1.8)).toBe(true);
-      for (const defender of CITY.defense!.players)
-        expect(
-          visible(
-            world,
-            { ...defender, y: defender.y + 1.65 },
-            { ...gate, y: gate.y + 1.65 },
-          ),
-        ).toBe(false);
-      for (const point of CITY.tacticalPositions!)
-        expect(nav.plan(gate, point.position), point.id).toBeDefined();
-    }
-  } finally {
-    world.dispose();
   }
 });

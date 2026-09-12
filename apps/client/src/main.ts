@@ -1,7 +1,11 @@
+import { isTeamMode } from '@fps/protocol';
 import { createMinimap } from './ui/minimap.js';
 import { createSoloUI } from './ui/solo-ui.js';
+import { createMissionUI } from './ui/mission-ui.js';
 import { modeSchema, difficultySchema, mapIdSchema } from '@fps/protocol';
 import './ui/styles.css';
+import './ui/entry.css';
+import './ui/mission.css';
 import { nicknameSchema } from '@fps/protocol';
 import type { GameSnapshot, PlayerSnapshot } from '@fps/protocol';
 import { Connection } from './network/connection.js';
@@ -12,15 +16,23 @@ import {
   createFixedStepper,
   initializePhysics,
   FIREARMS,
+  KNIFE,
   horizontalRecoil,
   equippedWeapon,
   magazineAmmo,
 } from '@fps/game-core';
-import { weaponSchema } from '@fps/protocol';
+import { selectableWeaponSchema } from '@fps/protocol';
 import { createPresentation } from './network/presentation.js';
 import { createGameUI } from './ui/game-ui.js';
 import { createSound } from './audio/sound.js';
+import { playerColor } from './render/player-colors.js';
+import { invitationRoom } from './ui/entry.js';
 import { TICK_RATE } from '@fps/protocol';
+import {
+  loadGraphicsQuality,
+  saveGraphicsQuality,
+  type GraphicsQuality,
+} from './render/graphics-quality.js';
 
 function element<T extends HTMLElement>(selector: string): T {
   const result = document.querySelector<T>(selector);
@@ -44,6 +56,7 @@ let local: PlayerSnapshot | undefined;
 let presentation: ReturnType<typeof createPresentation> | undefined;
 const gameUI = createGameUI();
 const soloUI = createSoloUI();
+const missionUI = createMissionUI();
 const minimap = createMinimap();
 const sound = createSound();
 let shotCooldown = 0;
@@ -52,7 +65,14 @@ void initializePhysics()
     presentation = createPresentation();
     if (latest) presentation.receive(latest, localId);
     playButton.disabled = !local || !controls;
-    element<HTMLButtonElement>('#quick-play').disabled = !controls;
+    element<HTMLButtonElement>('#quick-play').disabled =
+      !controls || joinButton.disabled;
+    element<HTMLButtonElement>('#mission-play').disabled =
+      element<HTMLButtonElement>('#control-play').disabled =
+      element<HTMLButtonElement>('#coop-play').disabled =
+        !controls || joinButton.disabled;
+    if (!connected && controls && !joinButton.disabled)
+      status.textContent = 'Можно играть';
   })
   .catch(() => {
     message.textContent = 'Не удалось загрузить физику. Обнови страницу.';
@@ -60,15 +80,24 @@ void initializePhysics()
 const stepper = createFixedStepper(TICK_RATE);
 let roomId = new URL(location.href).searchParams.get('room');
 let scene: ReturnType<typeof createScene> | undefined;
+const graphicsQuality = element<HTMLSelectElement>('#graphics-quality');
+const initialGraphicsQuality = loadGraphicsQuality(window.localStorage);
+graphicsQuality.value = initialGraphicsQuality;
 try {
   scene = createScene(
     element('#scene'),
     (from, to) => presentation?.hasSight(from, to) ?? false,
+    initialGraphicsQuality,
   );
 } catch {
   message.textContent =
     'Не удалось запустить WebGL. Проверь поддержку графики в браузере.';
 }
+graphicsQuality.addEventListener('change', () => {
+  const quality = graphicsQuality.value as GraphicsQuality;
+  saveGraphicsQuality(window.localStorage, quality);
+  scene?.setGraphicsQuality(quality);
+});
 const controls = scene
   ? createControls(
       scene.canvas,
@@ -103,7 +132,7 @@ volume.addEventListener('input', () =>
 function sendInput() {
   if (!controls) return;
   const command = controls.sample(sequence++);
-  if (local?.reloadRemaining) command.aiming = false;
+  if (local?.reloadRemaining || local?.slot === 'knife') command.aiming = false;
   presentation?.input(command);
   connection.send(command);
 }
@@ -118,6 +147,15 @@ scene?.onFrame((dt) => {
   shotCooldown = Math.max(0, shotCooldown - dt);
   const alpha = stepper.advance(dt, sendInput);
   const actions = controls.actions();
+  if (actions.order)
+    connection.send({
+      type: 'squadOrder',
+      kind: actions.order,
+      ...controls.look(),
+    });
+  if (actions.grenade)
+    connection.send({ type: 'throwGrenade', ...controls.look() });
+  if (actions.mine) connection.send({ type: 'deployMine' });
   if (actions.slot && local) {
     const slot =
       actions.slot === 'toggle'
@@ -130,6 +168,12 @@ scene?.onFrame((dt) => {
   }
   if (actions.reload) {
     if (
+      latest?.mode === 'mission' &&
+      ['failed', 'complete'].includes(latest.mission?.stage ?? '') &&
+      latest.hostId === localId
+    )
+      connection.send({ type: 'restartMission' });
+    else if (
       latest?.mode === 'waves' &&
       latest.wave.status === 'defeat' &&
       latest.hostId === localId
@@ -149,11 +193,12 @@ scene?.onFrame((dt) => {
     local.reloadRemaining <= 0
   ) {
     const weapon = equippedWeapon(local);
-    const primary =
-      magazineAmmo(local) > 0 &&
-      (actions.pressed || (actions.primary && FIREARMS[weapon].automatic));
-    if ((actions.knife && local.challenge.status !== 'running') || primary) {
-      const knife = actions.knife;
+    const knife = weapon === 'knife';
+    const primary = knife
+      ? actions.pressed && local.challenge.status !== 'running'
+      : magazineAmmo(local) > 0 &&
+        (actions.pressed || (actions.primary && FIREARMS[weapon].automatic));
+    if (primary) {
       connection.send({
         type: 'fire',
         inputSeq: Math.max(0, sequence - 1),
@@ -161,7 +206,7 @@ scene?.onFrame((dt) => {
         attack: knife ? 'knife' : 'primary',
         viewTick: presentation?.viewTick,
       });
-      shotCooldown = knife ? 0.5 : FIREARMS[weapon].interval;
+      shotCooldown = knife ? KNIFE.interval : FIREARMS[weapon].interval;
       scene?.shotFeedback(knife);
       sound.shot(knife ? 'knife' : weapon);
       if (!knife)
@@ -178,6 +223,7 @@ scene?.onFrame((dt) => {
   if (local)
     scene?.setAiming(
       controls.aiming &&
+        local.slot !== 'knife' &&
         local.health > 0 &&
         local.reloadRemaining <= 0 &&
         latest?.phase !== 'results',
@@ -211,7 +257,21 @@ element<HTMLSelectElement>('#weapon-select').addEventListener(
   (event) => {
     connection.send({
       type: 'selectWeapon',
-      weapon: weaponSchema.parse((event.target as HTMLSelectElement).value),
+      weapon: selectableWeaponSchema.parse(
+        (event.target as HTMLSelectElement).value,
+      ),
+    });
+  },
+);
+
+element<HTMLSelectElement>('#assault-loadout').addEventListener(
+  'change',
+  (event) => {
+    connection.send({
+      type: 'selectWeapon',
+      weapon: selectableWeaponSchema.parse(
+        (event.target as HTMLSelectElement).value,
+      ),
     });
   },
 );
@@ -271,7 +331,7 @@ window.addEventListener('keydown', (event) => {
   }
   if (event.code === 'KeyF' && controls?.locked && !event.repeat) {
     event.preventDefault();
-    startChallenge();
+    if (latest?.mode !== 'mission') startChallenge();
   }
 });
 let rosterKey = '';
@@ -283,9 +343,17 @@ function renderPlayers(snapshot: GameSnapshot, id: string) {
   presentation?.receive(snapshot, id);
   gameUI.snapshot(snapshot, id);
   soloUI.snapshot(snapshot, id);
+  missionUI.snapshot(snapshot, id);
   const nextRosterKey = JSON.stringify([
     id,
-    snapshot.players.map((p) => [p.id, p.nickname]),
+    snapshot.mode,
+    snapshot.players.map((p) => [
+      p.id,
+      p.nickname,
+      p.colorIndex,
+      p.bot,
+      p.ally,
+    ]),
   ]);
   if (nextRosterKey !== rosterKey) {
     rosterKey = nextRosterKey;
@@ -295,6 +363,15 @@ function renderPlayers(snapshot: GameSnapshot, id: string) {
         const item = document.createElement('li');
         const dot = document.createElement('span');
         dot.className = player.id === localId ? 'dot local' : 'dot';
+        dot.style.backgroundColor =
+          '#' +
+          playerColor(
+            player.colorIndex,
+            player.id === localId ||
+              (isTeamMode(snapshot.mode) && (!player.bot || player.ally)),
+          )
+            .toString(16)
+            .padStart(6, '0');
         const name = document.createElement('span');
         name.textContent = player.nickname;
         item.append(dot, name);
@@ -337,7 +414,27 @@ function renderPlayers(snapshot: GameSnapshot, id: string) {
 }
 
 function updateJoinButton() {
-  joinButton.textContent = roomId ? 'Войти в комнату ↗' : 'Создать комнату ↗';
+  joinButton.textContent = roomId ? 'Войти в комнату' : 'Создать комнату';
+  element('#app').classList.toggle('invited', !!roomId);
+  element('#invitation-notice').hidden = !roomId;
+  element('#invited-room').textContent = roomId ?? '';
+  element('#quick-start-options').hidden = !!roomId;
+  element('#solo-start-option').hidden = !!roomId;
+  element('#custom-room-note').hidden = !!roomId;
+  element('#friend-entry').hidden = !!roomId;
+  element('#new-room-link').hidden = !roomId;
+  element('#title').innerHTML = roomId
+    ? 'Игра по<br /><span>приглашению.</span>'
+    : 'Собери отряд.<br /><span>Держи оборону.</span>';
+  element('.intro').textContent = roomId
+    ? 'Введи ник и присоединяйся. Настройки комнаты сохранятся.'
+    : 'Спаси последний рейс из Bastion, удерживай точку или отбивай волны на плотине. Начни с ботами, друзей пригласи по ссылке из игры.';
+  element('#entry-eyebrow').textContent = roomId
+    ? 'ИГРА С ДРУЗЬЯМИ'
+    : 'БЕЗ РЕГИСТРАЦИИ · СРАЗУ В ИГРУ';
+  element('#map-name').textContent = roomId
+    ? 'ПРИГЛАШЕНИЕ / НАСТРОЙКИ КОМНАТЫ'
+    : 'SPILLWAY / СУХОЙ ВОДОСБРОС';
 }
 updateJoinButton();
 
@@ -369,13 +466,15 @@ const connection = new Connection({
     presentation?.reset();
     gameUI.reset();
     soloUI.reset();
+    missionUI.reset();
     minimap.reset();
     sound.reset();
     element('#network-banner').hidden = true;
     controls?.release();
     controls?.resetLook();
     scene?.setFirstPerson(false);
-    element('#app').classList.remove('playing', 'in-room');
+    element('#app').classList.remove('playing', 'in-room', 'map-preview');
+    element('#close-map-preview').hidden = true;
     hud.hidden = true;
     stepper.reset();
     form.hidden = false;
@@ -394,7 +493,7 @@ const connection = new Connection({
       {
         tick: 0,
         wave: emptyWave(),
-        mapId: 'bastion',
+        mapId: 'spillway',
         mode: 'arena',
         hostId: '',
         botCount: 3,
@@ -405,6 +504,8 @@ const connection = new Connection({
         remaining: 0,
         winner: '',
         players: [],
+        mines: [],
+        grenades: [],
       },
       '',
     );
@@ -412,7 +513,7 @@ const connection = new Connection({
       {
         tick: 0,
         wave: emptyWave(),
-        mapId: 'bastion',
+        mapId: 'spillway',
         mode: 'arena',
         hostId: '',
         botCount: 3,
@@ -423,17 +524,23 @@ const connection = new Connection({
         remaining: 0,
         winner: '',
         players: [],
+        mines: [],
+        grenades: [],
       },
       '',
     );
     gameUI.reset();
     soloUI.reset();
     minimap.reset();
+    missionUI.reset();
     sound.reset();
   },
 });
 
-element('#quick-play').addEventListener('click', () => {
+function quickPlay(
+  allies: number,
+  mode: 'waves' | 'control' | 'mission' = 'waves',
+) {
   if (joinButton.disabled || !controls || !presentation) return;
   const invited = !!roomId;
   if (!nickname.value.trim()) nickname.value = 'Игрок';
@@ -444,22 +551,88 @@ element('#quick-play').addEventListener('click', () => {
       controls.release();
       return;
     }
-    if (!invited) connection.send({ type: 'setMode', mode: 'waves' });
+    if (!invited) {
+      if (mode === 'waves')
+        connection.send({ type: 'setMap', mapId: 'spillway' });
+      connection.send({ type: 'setMode', mode });
+      connection.send({ type: 'setAllies', count: allies });
+    }
     connection.send({ type: 'ready', ready: true });
   });
+}
+element('#quick-play').addEventListener('click', () => quickPlay(0));
+element('#coop-play').addEventListener('click', () => quickPlay(2));
+element('#control-play').addEventListener('click', () =>
+  quickPlay(2, 'control'),
+);
+element('#mission-play').addEventListener('click', () =>
+  quickPlay(2, 'mission'),
+);
+element('#restart-mission').addEventListener('click', () =>
+  connection.send({ type: 'restartMission' }),
+);
+function previewMap(open: boolean) {
+  element('#app').classList.toggle('map-preview', open);
+  element('#close-map-preview').hidden = !open;
+  if (open) element('#close-map-preview').focus();
+  else element(connected ? '#map-preview' : '#landing-preview').focus();
+}
+element('#map-preview').addEventListener('click', () => previewMap(true));
+element('#landing-preview').addEventListener('click', () => previewMap(true));
+element('#close-map-preview').addEventListener('click', () =>
+  previewMap(false),
+);
+document.addEventListener('keydown', (event) => {
+  if (
+    event.code === 'Escape' &&
+    element('#app').classList.contains('map-preview')
+  )
+    previewMap(false);
 });
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   void join();
 });
+const friendLink = element<HTMLInputElement>('#friend-link');
+function joinFriend() {
+  if (joinButton.disabled) return;
+  const invitedRoom = invitationRoom(friendLink.value, location.href);
+  if (!invitedRoom) {
+    element('#friend-error').textContent =
+      'Вставь ссылку с ?room=… или код комнаты из меню игры.';
+    friendLink.setAttribute('aria-invalid', 'true');
+    friendLink.focus();
+    return;
+  }
+  element('#friend-error').textContent = '';
+  friendLink.removeAttribute('aria-invalid');
+  roomId = invitedRoom;
+  updateJoinButton();
+  void join();
+}
+element('#join-friend').addEventListener('click', joinFriend);
+friendLink.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    joinFriend();
+  }
+});
 async function join() {
   if (joinButton.disabled) return;
+  if (!nickname.value.trim()) nickname.value = 'Игрок';
   const parsed = nicknameSchema.safeParse(nickname.value);
   if (!parsed.success) {
     message.textContent = 'Введи ник от 1 до 20 символов.';
     return;
   }
   joinButton.disabled = true;
+  element<HTMLButtonElement>('#quick-play').disabled = true;
+  element<HTMLButtonElement>('#mission-play').disabled =
+    element<HTMLButtonElement>('#control-play').disabled =
+    element<HTMLButtonElement>('#coop-play').disabled =
+      true;
+  element<HTMLButtonElement>('#join-friend').disabled = true;
+  form.setAttribute('aria-busy', 'true');
   status.textContent = 'Подключаемся…';
   message.textContent = '';
   try {
@@ -485,6 +658,14 @@ async function join() {
       : 'Сервер недоступен. Проверь, что он запущен, и попробуй ещё раз.';
   } finally {
     joinButton.disabled = false;
+    element<HTMLButtonElement>('#quick-play').disabled =
+      !controls || !presentation;
+    element<HTMLButtonElement>('#mission-play').disabled =
+      element<HTMLButtonElement>('#control-play').disabled =
+      element<HTMLButtonElement>('#coop-play').disabled =
+        !controls || !presentation;
+    element<HTMLButtonElement>('#join-friend').disabled = false;
+    form.removeAttribute('aria-busy');
   }
 }
 element('#copy').addEventListener('click', () => {

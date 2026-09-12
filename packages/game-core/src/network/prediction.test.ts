@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, expect, it } from 'vitest';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import {
   createGame,
   createPrediction,
@@ -65,6 +65,34 @@ it('bounds unacknowledged history and resets it after respawn', () => {
   prediction.reconcile(next);
   expect(prediction.pendingCount).toBe(0);
   expect(prediction.state()?.position).toEqual(next.position);
+});
+it('returns independent player copies without general-purpose serialization on the render path', () => {
+  const { game, prediction } = setup();
+  const source = game.snapshot().players[0]!;
+  const clone = vi.spyOn(globalThis, 'structuredClone');
+  try {
+    prediction.reconcile(source);
+    const copy = prediction.state()!;
+    expect(copy).toEqual(source);
+    expect(
+      Object.entries(source)
+        .filter(([, value]) => value && typeof value === 'object')
+        .map(([key]) => key)
+        .sort(),
+    ).toEqual(['challenge', 'position', 'velocity']);
+    copy.position.x += 100;
+    copy.velocity.y = 999;
+    copy.challenge.hits = 999;
+    expect(prediction.state()).toEqual(source);
+    const command = input(1);
+    prediction.push(command);
+    command.buttons.forward = false;
+    prediction.reconcile(source);
+    expect(prediction.state()!.position.z).toBeLessThan(source.position.z);
+    expect(clone).not.toHaveBeenCalled();
+  } finally {
+    clone.mockRestore();
+  }
 });
 it('interpolates remote positions and wrapped angles without crossing respawns', () => {
   const { game } = setup();

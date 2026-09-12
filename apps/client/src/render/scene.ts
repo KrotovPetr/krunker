@@ -1,4 +1,11 @@
+import { isTeamMode } from '@fps/protocol';
 import { createCombatEffects } from './combat-effects.js';
+import { createMineVisuals } from './mines.js';
+import { createControlVisuals } from './control.js';
+import { createAdaptiveQuality } from './adaptive-quality.js';
+import { createMissionVisuals } from './mission.js';
+import { createGrenadeVisuals } from './grenades.js';
+import { createTracers } from './tracers.js';
 import { createCharacter } from './character.js';
 import { createEnemyMarkers } from './enemy-markers.js';
 import type { VisibilityTest } from './enemy-markers.js';
@@ -6,8 +13,12 @@ import * as THREE from 'three';
 import { createEnvironment } from './environment.js';
 import { createViewWeapon } from './view-weapon.js';
 import {
+  resolveGraphicsProfile,
+  type GraphicsQuality,
+} from './graphics-quality.js';
+import {
   ARENA,
-  CITY,
+  SPILLWAY,
   getMap,
   movingTargets,
   PARKOUR_CHECKPOINTS,
@@ -16,21 +27,38 @@ import {
 } from '@fps/game-core';
 import type { GameSnapshot, PlayerSnapshot, ServerEvent } from '@fps/protocol';
 
-export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
+export function createScene(
+  container: HTMLElement,
+  hasSight: VisibilityTest,
+  initialQuality: GraphicsQuality = 'auto',
+) {
   const scene = new THREE.Scene();
   const enemyMarkers = createEnemyMarkers(scene, hasSight);
   let markerSnapshot: GameSnapshot | undefined;
-  scene.background = new THREE.Color(0xc7d9df);
-  scene.fog = new THREE.Fog(0xc7d9df, 65, 150);
+  scene.background = new THREE.Color(0xbab3a6);
+  scene.fog = new THREE.Fog(0xbab3a6, 140, 230);
   const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 150);
   camera.rotation.order = 'YXZ';
-  const overview = () => {
-    camera.position.set(36, 38, 42);
-    camera.lookAt(0, 0, 0);
+  const overview = (mapId = 'spillway') => {
+    if (mapId === 'spillway') camera.position.set(-35, 49, 70);
+    else camera.position.set(36, 38, 42);
+    camera.lookAt(0, 1, 0);
   };
   overview();
+  const deviceMemory = (navigator as Navigator & { deviceMemory?: number })
+    .deviceMemory;
+  let graphicsQuality = initialQuality;
+  const adaptiveQuality = createAdaptiveQuality();
+  let graphicsProfile = resolveGraphicsProfile(
+    graphicsQuality,
+    window.devicePixelRatio,
+    navigator.hardwareConcurrency,
+    deviceMemory,
+  );
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(graphicsProfile.pixelRatio);
+  renderer.domElement.dataset.adaptiveLevel = '0';
+  renderer.domElement.dataset.renderScale = String(graphicsProfile.pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.append(renderer.domElement);
 
@@ -38,15 +66,19 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
   const sun = new THREE.DirectionalLight(0xffe4bc, 3.2);
   sun.position.set(8, 20, 10);
   scene.add(sun);
-  let map = CITY;
-  let environment = createEnvironment(map);
+  let map = SPILLWAY;
+  renderer.domElement.dataset.map = map.id;
+  let environment = createEnvironment(map, graphicsProfile.mapDetails);
   scene.add(environment.root);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = graphicsProfile.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.castShadow = graphicsProfile.shadows;
+  sun.shadow.mapSize.set(
+    graphicsProfile.shadowMapSize,
+    graphicsProfile.shadowMapSize,
+  );
   Object.assign(sun.shadow.camera, {
     left: -38,
     right: 38,
@@ -61,6 +93,41 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
   // The map is static; render its shadow atlas only when a map is loaded.
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
+  const applyGraphicsQuality = (quality: GraphicsQuality) => {
+    const next = resolveGraphicsProfile(
+      quality,
+      window.devicePixelRatio,
+      navigator.hardwareConcurrency,
+      deviceMemory,
+    );
+    const rebuildMap = next.mapDetails !== graphicsProfile.mapDetails;
+    const rebuildShadowMap =
+      next.shadowMapSize !== graphicsProfile.shadowMapSize;
+    graphicsQuality = quality;
+    adaptiveQuality.reset();
+    renderer.domElement.dataset.adaptiveLevel = '0';
+    renderer.domElement.dataset.renderScale = String(next.pixelRatio);
+    graphicsProfile = next;
+    renderer.setPixelRatio(next.pixelRatio);
+    renderer.shadowMap.enabled = next.shadows;
+    sun.castShadow = next.shadows;
+    if (rebuildShadowMap) {
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+      sun.shadow.mapSize.set(next.shadowMapSize, next.shadowMapSize);
+    }
+    if (rebuildMap) {
+      environment.dispose();
+      environment = createEnvironment(map, next.mapDetails);
+      scene.add(environment.root);
+    }
+    renderer.shadowMap.needsUpdate = next.shadows;
+    renderer.domElement.dataset.graphicsQuality = graphicsQuality;
+    renderer.domElement.dataset.pixelRatio = String(next.pixelRatio);
+    renderer.domElement.dataset.shadows = String(next.shadows);
+    renderer.domElement.dataset.mapDetails = next.mapDetails;
+  };
+  applyGraphicsQuality(graphicsQuality);
   const players = new Map<
     string,
     {
@@ -159,9 +226,16 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
   scene.add(course);
   course.visible = false;
   const effects = createCombatEffects(scene);
+  const mineVisuals = createMineVisuals(scene);
+  const controlVisuals = createControlVisuals(scene);
+  const missionVisuals = createMissionVisuals(scene);
+  const reducedMotion = window.matchMedia(
+    '(prefers-reduced-motion: reduce)',
+  ).matches;
+  const grenadeVisuals = createGrenadeVisuals(scene);
   const viewWeapon = createViewWeapon(camera);
   scene.add(camera);
-  const traces: { line: THREE.Line; remaining: number }[] = [];
+  const tracers = createTracers(scene);
   let aiming = false;
   let localId = '';
   let firstPerson = false;
@@ -188,8 +262,19 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
         ? 0
         : Math.min((time - previousTime) / 1000, 0.25);
     previousTime = time;
+    const scale = adaptiveQuality.sample(
+      dt,
+      graphicsQuality === 'auto' && firstPerson && !document.hidden,
+    );
+    if (scale !== undefined) {
+      const ratio = Math.max(0.5, graphicsProfile.pixelRatio * scale);
+      renderer.setPixelRatio(ratio);
+      renderer.domElement.dataset.adaptiveLevel = String(adaptiveQuality.level);
+      renderer.domElement.dataset.renderScale = String(ratio);
+    }
     frameHandler?.(dt);
     effects.update(dt);
+    mineVisuals.update(dt);
     for (const [id, player] of players) {
       player.mesh.position.copy(player.target);
       player.mesh.scale.y =
@@ -225,18 +310,28 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
         target.hitRemaining > 0 ? 0x23945d : 0x000000,
       );
     }
-    camera.fov = viewWeapon.update(dt, local?.state, firstPerson, aiming);
-    camera.updateProjectionMatrix();
-    for (let i = traces.length - 1; i >= 0; i--) {
-      const trace = traces[i]!;
-      trace.remaining -= dt;
-      if (trace.remaining <= 0) {
-        scene.remove(trace.line);
-        trace.line.geometry.dispose();
-        (trace.line.material as THREE.Material).dispose();
-        traces.splice(i, 1);
-      }
+    const missionFrame = missionVisuals.frame(
+      dt,
+      camera,
+      environment.tram,
+      firstPerson,
+      reducedMotion,
+    );
+    if (missionFrame.cinematic)
+      for (const player of players.values()) player.mesh.visible = false;
+    renderer.toneMappingExposure = missionFrame.blackout ? 0.85 : 1.15;
+    const weaponFov = viewWeapon.update(
+      dt,
+      local?.state,
+      firstPerson && !missionFrame.cinematic,
+      aiming,
+    );
+    const nextFov = !firstPerson && map.id === 'spillway' ? 46 : weaponFov;
+    if (Math.abs(camera.fov - nextFov) > 0.001) {
+      camera.fov = nextFov;
+      camera.updateProjectionMatrix();
     }
+    tracers.update(dt);
     renderer.domElement.dataset.enemyMarkers = String(
       enemyMarkers.update(markerSnapshot, localId, camera, firstPerson, time),
     );
@@ -251,12 +346,19 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
     setAiming(enabled: boolean) {
       aiming = enabled;
     },
+    setGraphicsQuality(quality: GraphicsQuality) {
+      applyGraphicsQuality(quality);
+    },
     shotFeedback(knife = false) {
       viewWeapon.shot(knife);
       if (!knife) effects.eject(camera.position, yaw);
     },
     event(event: ServerEvent) {
       effects.event(event);
+      mineVisuals.event(event);
+      if (event.type === 'grenadeThrown' && event.playerId === localId)
+        viewWeapon.thrown();
+      tracers.event(event, localId);
       if (
         event.type === 'shot' &&
         event.playerId !== localId &&
@@ -271,23 +373,6 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
         const target = targetMaterials.get(event.targetId);
         if (target) target.hitRemaining = 0.18;
       }
-      if (event.type !== 'shot' || event.weapon === 'knife') return;
-      for (const end of event.ends) {
-        if (traces.length >= 64) break;
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(event.origin.x, event.origin.y, event.origin.z),
-            new THREE.Vector3(end.x, end.y, end.z),
-          ]),
-          new THREE.LineBasicMaterial({
-            color: event.playerId === localId ? 0xffd08a : 0xffffff,
-            transparent: true,
-            opacity: 0.65,
-          }),
-        );
-        traces.push({ line, remaining: 0.065 });
-        scene.add(line);
-      }
     },
     setLook(look: { yaw: number; pitch: number }) {
       yaw = look.yaw;
@@ -295,29 +380,45 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
     },
     setFirstPerson(enabled: boolean) {
       firstPerson = enabled;
-      if (!enabled) overview();
+      if (!enabled) overview(map.id);
     },
     update(snapshot: GameSnapshot, sessionId: string) {
       if (snapshot.mapId !== map.id) {
         enemyMarkers.reset();
         effects.reset();
+        mineVisuals.reset();
+        grenadeVisuals.reset();
         environment.dispose();
         map = getMap(snapshot.mapId);
-        const sky = map.id === 'sandgate' ? 0xd1dcde : 0xc7d9df;
+        if (!firstPerson) overview(map.id);
+        const sky =
+          map.id === 'sandgate'
+            ? 0xd1dcde
+            : map.id === 'spillway'
+              ? 0xbab3a6
+              : 0xc7d9df;
         (scene.background as THREE.Color).setHex(sky);
         (scene.fog as THREE.Fog).color.setHex(sky);
-        environment = createEnvironment(map);
+        (scene.fog as THREE.Fog).near = map.id === 'spillway' ? 140 : 65;
+        (scene.fog as THREE.Fog).far = map.id === 'spillway' ? 230 : 150;
+        environment = createEnvironment(map, graphicsProfile.mapDetails);
         scene.add(environment.root);
         renderer.shadowMap.needsUpdate = true;
-        for (const trace of traces) {
-          scene.remove(trace.line);
-          trace.line.geometry.dispose();
-          (trace.line.material as THREE.Material).dispose();
-        }
-        traces.length = 0;
+        tracers.reset();
       }
       renderer.domElement.dataset.map = map.id;
       markerSnapshot = snapshot;
+      mineVisuals.snapshot(snapshot, sessionId);
+      controlVisuals.snapshot(snapshot);
+      missionVisuals.snapshot(snapshot, sessionId);
+      renderer.domElement.dataset.mission =
+        snapshot.mode === 'mission'
+          ? (snapshot.mission?.stage ?? 'idle')
+          : 'off';
+      renderer.domElement.dataset.control = String(snapshot.mode === 'control');
+      grenadeVisuals.snapshot(snapshot, sessionId);
+      renderer.domElement.dataset.grenades = String(snapshot.grenades.length);
+      renderer.domElement.dataset.mines = String(snapshot.mines.length);
       localId = sessionId;
       personalChallenge =
         snapshot.mode === 'training' || snapshot.mode === 'parkour';
@@ -374,22 +475,31 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
         }
       }
       for (const player of snapshot.players) {
-        const target = new THREE.Vector3(
-          player.position.x,
-          player.position.y + playerHeight(player) / 2,
-          player.position.z,
-        );
         let rendered = players.get(player.id);
         if (!rendered) {
           const rig = createCharacter(player.bot);
           const mesh = rig.root;
+          const target = new THREE.Vector3(
+            player.position.x,
+            player.position.y + playerHeight(player) / 2,
+            player.position.z,
+          );
           rendered = { mesh, rig, target, state: player };
           players.set(player.id, rendered);
           mesh.position.copy(target);
           scene.add(mesh);
         }
-        rendered.target.copy(target);
+        rendered.target.set(
+          player.position.x,
+          player.position.y + playerHeight(player) / 2,
+          player.position.z,
+        );
         rendered.state = player;
+        rendered.rig.setAppearance(
+          player.colorIndex,
+          player.id === sessionId ||
+            (isTeamMode(snapshot.mode) && (!player.bot || player.ally)),
+        );
         rendered.mesh.rotation.y = player.yaw;
       }
       renderer.domElement.dataset.playerCount = String(players.size);
@@ -399,6 +509,11 @@ export function createScene(container: HTMLElement, hasSight: VisibilityTest) {
       enemyMarkers.dispose();
       environment.dispose();
       effects.dispose();
+      mineVisuals.dispose();
+      controlVisuals.dispose();
+      missionVisuals.dispose();
+      grenadeVisuals.dispose();
+      tracers.dispose();
       for (const texture of courseTextures) texture.dispose();
       renderer.setAnimationLoop(null);
       for (const player of players.values()) player.rig.dispose();

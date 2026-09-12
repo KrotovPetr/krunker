@@ -70,7 +70,11 @@ describe('game membership', () => {
     const player = game.snapshot().players[0];
     if (!player) throw new Error('Player missing');
     player.position.x = 999;
+    player.velocity.y = 999;
+    player.challenge.hits = 999;
     expect(game.snapshot().players[0]?.position.x).not.toBe(999);
+    expect(game.snapshot().players[0]?.velocity.y).not.toBe(999);
+    expect(game.snapshot().players[0]?.challenge.hits).not.toBe(999);
   });
   it('updates only the addressed player', () => {
     const game = create();

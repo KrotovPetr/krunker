@@ -15,6 +15,7 @@ export function createSound() {
     active = false,
     disposed = false;
   let listener: PlayerSnapshot | undefined;
+  let missionCue = '';
   const voices = new Set<AudioBufferSourceNode | OscillatorNode>();
   const previous = new Map<
     string,
@@ -206,6 +207,10 @@ export function createSound() {
     },
     shot,
     event(event: ServerEvent, localId: string) {
+      if (event.type === 'explosion') {
+        burst(0.35, 900, 0.45, event.position);
+        tone(110, 35, 0.3, 0.3, event.position);
+      }
       if (event.type === 'shot' && event.playerId !== localId)
         shot(event.weapon, event.origin);
       if (
@@ -219,6 +224,26 @@ export function createSound() {
     },
     update(snapshot: GameSnapshot, localId: string) {
       listener = snapshot.players.find((p) => p.id === localId);
+      const mission =
+        snapshot.mode === 'mission' ? snapshot.mission : undefined;
+      const cue = mission ? `${mission.runId}:${mission.serial}` : '';
+      if (cue !== missionCue) {
+        missionCue = cue;
+        if (mission?.stage === 'override') {
+          burst(1.2, 180, 0.28);
+          tone(420, 160, 1.4, 0.18);
+        } else if (mission?.stage === 'extract') {
+          tone(190, 230, 1.5, 0.2);
+          tone(285, 345, 1.5, 0.12);
+        } else if (mission?.stage === 'departing') {
+          tone(130, 65, 3, 0.2);
+          burst(2.5, 240, 0.15);
+        } else if (mission?.stage === 'complete') {
+          tone(330, 330, 1.2, 0.12);
+          tone(440, 440, 1.6, 0.1);
+          tone(660, 660, 2, 0.08);
+        } else if (mission) tone(720, 540, 0.14, 0.08);
+      }
       const ids = new Set(snapshot.players.map((p) => p.id));
       for (const id of previous.keys()) if (!ids.has(id)) previous.delete(id);
       for (const player of snapshot.players) {
@@ -265,6 +290,7 @@ export function createSound() {
       }
     },
     reset() {
+      missionCue = '';
       previous.clear();
       listener = undefined;
     },

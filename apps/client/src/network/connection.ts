@@ -62,7 +62,7 @@ export class Connection {
       if (event.type === 'commandRejected')
         this.handlers.error(
           event.reason === 'squadFull'
-            ? 'Для обороны нужно не больше четырёх игроков.'
+            ? 'В отряде может быть не больше четырёх игроков.'
             : event.reason === 'hostOnly'
               ? 'Режим выбирает хозяин комнаты.'
               : event.reason === 'matchRunning'

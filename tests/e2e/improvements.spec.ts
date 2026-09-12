@@ -1,5 +1,41 @@
 import { expect, test } from '@playwright/test';
 
+test('graphics profiles apply to WebGL and persist', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() =>
+    localStorage.setItem('browser-fps-graphics-quality', 'low'),
+  );
+  await page.reload();
+  const canvas = page.locator('#scene canvas');
+  const quality = page.locator('#graphics-quality');
+  await expect(quality).toHaveValue('low');
+  await expect(canvas).toHaveAttribute('data-graphics-quality', 'low');
+  await expect(canvas).toHaveAttribute('data-shadows', 'false');
+  await expect(canvas).toHaveAttribute('data-map-details', 'reduced');
+  expect(
+    await canvas.evaluate(
+      (element) =>
+        (element as HTMLCanvasElement).width /
+        element.getBoundingClientRect().width,
+    ),
+  ).toBeCloseTo(0.75, 1);
+
+  await page.locator('#nickname').fill('Graphics');
+  await page.locator('#join').click();
+  await expect(page.locator('#play')).toBeEnabled();
+  await quality.selectOption('medium');
+  await expect(canvas).toHaveAttribute('data-shadows', 'true');
+  await expect(canvas).toHaveAttribute('data-map-details', 'full');
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem('browser-fps-graphics-quality'),
+    ),
+  ).toBe('medium');
+  await page.reload();
+  await expect(quality).toHaveValue('medium');
+  await expect(canvas).toHaveAttribute('data-graphics-quality', 'medium');
+});
+
 test('quick entry starts defense; optional allies and compact ammo HUD survive the network round trip', async ({
   page,
   browserName,

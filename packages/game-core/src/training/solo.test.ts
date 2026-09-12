@@ -138,7 +138,7 @@ describe('range challenges', () => {
     });
     expect(local(g).challenge.reactionMs).toBeGreaterThan(500);
     expect(local(g).kills).toBe(0);
-    expect(local(g).health).toBe(90);
+    expect(local(g).health).toBe(100);
   });
   it('counts a shotgun trigger once and cannot count the same target twice', () => {
     const c = {

@@ -1,4 +1,9 @@
-import type { PlayerSnapshot, Vec3, WeaponId } from '@fps/protocol';
+import type {
+  MineSnapshot,
+  PlayerSnapshot,
+  Vec3,
+  WeaponId,
+} from '@fps/protocol';
 import type { CollisionWorld } from '../movement/collision-world.js';
 import { playerHeight } from '../movement/controller.js';
 
@@ -20,12 +25,30 @@ export interface WeaponConfig {
   recoil: number;
   bloomPerShot?: number;
   maxBloom?: number;
+  movingSpread?: number;
 }
 export const WEAPONS: Record<WeaponId, WeaponConfig> = {
+  sapper: {
+    name: 'Карабин «Заслон»',
+    health: 100,
+    speed: 1,
+    magazine: 24,
+    damage: 23,
+    headMultiplier: 1.5,
+    interval: 0.17,
+    reload: 1.8,
+    range: 75,
+    pellets: 1,
+    spread: 0.018,
+    aimedSpread: 0.003,
+    aimSeconds: 0.16,
+    recoil: 0.009,
+    automatic: true,
+  },
   lmg: {
     name: 'Пулемёт «Титан»',
     health: 100,
-    speed: 0.6,
+    speed: 0.82,
     magazine: 100,
     damage: 16,
     headMultiplier: 1.5,
@@ -33,24 +56,25 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
     reload: 6,
     range: 100,
     pellets: 1,
-    spread: 0.007,
-    aimedSpread: 0.0015,
-    aimSeconds: 0.28,
+    spread: 0.045,
+    aimedSpread: 0.002,
+    aimSeconds: 0.35,
     recoil: 0.005,
     automatic: true,
     bloomPerShot: 0.002,
-    maxBloom: 0.004,
+    maxBloom: 0.012,
+    movingSpread: 0.03,
   },
   smg: {
     name: 'ПП «Вектор»',
     health: 100,
-    speed: 1.18,
+    speed: 1.12,
     magazine: 32,
     damage: 18,
     headMultiplier: 1.5,
     interval: 0.095,
     reload: 1.45,
-    range: 55,
+    range: 40,
     pellets: 1,
     spread: 0.026,
     aimedSpread: 0.006,
@@ -94,10 +118,10 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   sniper: {
     name: 'Снайперка',
-    health: 90,
-    speed: 0.9,
+    health: 100,
+    speed: 0.95,
     magazine: 5,
-    damage: 100,
+    damage: 85,
     headMultiplier: 2,
     interval: 1.1,
     reload: 2.2,
@@ -111,8 +135,8 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   shotgun: {
     name: 'Дробовик',
-    health: 110,
-    speed: 0.96,
+    health: 100,
+    speed: 1,
     magazine: 6,
     damage: 14,
     headMultiplier: 1,
@@ -148,6 +172,12 @@ export const FIREARMS = { ...WEAPONS, pistol: PISTOL };
 export type FirearmId = WeaponId | 'pistol';
 export function equippedWeapon(
   player: Pick<PlayerSnapshot, 'weapon' | 'slot'>,
+): FirearmId | 'knife' {
+  return player.slot === 'knife' ? 'knife' : equippedFirearm(player);
+}
+/** Firearm configuration retained while the knife is selected. */
+export function equippedFirearm(
+  player: Pick<PlayerSnapshot, 'weapon' | 'slot'>,
 ): FirearmId {
   return player.slot === 'secondary' ? 'pistol' : player.weapon;
 }
@@ -157,10 +187,11 @@ export function magazineAmmo(
   return player.slot === 'secondary' ? player.secondaryAmmo : player.ammo;
 }
 export const CLASS_NAMES: Record<WeaponId, string> = {
+  sapper: 'Инженер',
   rifle: 'Штурмовик',
   smg: 'Разведчик',
   sniper: 'Снайпер',
-  shotgun: 'Тяжёлый боец',
+  shotgun: 'Штурмовик',
   revolver: 'Стрелок',
   lmg: 'Пулемётчик',
 };
@@ -186,7 +217,8 @@ export function weaponSpread(
   return (
     (config.spread +
       (config.aimedSpread - config.spread) * progress +
-      (config.automatic ? bloom : 0)) *
+      (config.automatic ? bloom : 0) +
+      (config.movingSpread ?? 0) * Math.min(Math.max(speed, 0) / 8.5, 1)) *
     (grounded ? 1 : 1.4) *
     (1 + Math.min(speed / 18, 1) * 0.4 * (1 - progress))
   );
@@ -238,6 +270,7 @@ export function traceShot(
   pitch: number,
   weapon: FirearmId | 'knife',
   seed: number,
+  mines: readonly MineSnapshot[] = [],
 ) {
   const config = weapon === 'knife' ? KNIFE : FIREARMS[weapon];
   const origin = {
@@ -245,6 +278,7 @@ export function traceShot(
     y: shooter.position.y + playerHeight(shooter) - 0.15,
   };
   const hits = new Map<string, { damage: number; headshot: boolean }>();
+  const mineHits = new Set<string>();
   const ends: Vec3[] = [];
   const impacts: { position: Vec3; normal: Vec3 }[] = [];
   let randomState = seed >>> 0;
@@ -352,12 +386,30 @@ export function traceShot(
         }
       }
     }
+    let mineId: string | undefined;
+    if (weapon !== 'knife') {
+      for (const mine of mines) {
+        const { x, y, z } = mine.position;
+        const hit = rayBox(
+          origin,
+          direction,
+          { x: x - 0.3, y: y - 0.06, z: z - 0.3 },
+          { x: x + 0.3, y: y + 0.11, z: z + 0.3 },
+        );
+        if (hit < distance) {
+          distance = hit;
+          mineId = mine.id;
+          targetId = undefined;
+        }
+      }
+      if (mineId) mineHits.add(mineId);
+    }
     ends.push({
       x: origin.x + direction.x * distance,
       y: origin.y + direction.y * distance,
       z: origin.z + direction.z * distance,
     });
-    if (!targetId && distance < config.range) {
+    if (!targetId && !mineId && distance < config.range) {
       const surface = world.raycastSurface?.(origin, direction, config.range);
       if (surface)
         impacts.push({
@@ -370,7 +422,7 @@ export function traceShot(
         weapon === 'shotgun'
           ? Math.max(0.2, Math.min(1, 1 - (distance - 6) / 24))
           : weapon === 'smg'
-            ? Math.max(0.45, Math.min(1, 1 - (distance - 12) / 55))
+            ? Math.max(0.45, Math.min(1, 1 - (distance - 8) / 30))
             : 1;
       const damage = config.damage * multiplier * falloff;
       const previous = hits.get(targetId);
@@ -380,5 +432,5 @@ export function traceShot(
       });
     }
   }
-  return { origin, ends, hits, impacts };
+  return { origin, ends, hits, impacts, mineHits };
 }

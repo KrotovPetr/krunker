@@ -59,7 +59,8 @@ test('wave defense waits for a player, launches a finite attack and can retry af
   await expect(page.locator('#score-title')).toContainText('Оборона закончена');
   await page.keyboard.press('Escape');
   await expect(page.locator('#scoreboard')).toBeHidden();
-  await page.locator('#weapon-select').selectOption('revolver');
+  await page.locator('#weapon-select').selectOption('rifle');
+  await page.locator('#assault-loadout').selectOption('shotgun');
   await expect(page.locator('#health')).toHaveAttribute('data-value', '0');
   await page.locator('#play').click();
   await page.keyboard.press('r');
@@ -68,19 +69,20 @@ test('wave defense waits for a player, launches a finite attack and can retry af
     'preparing',
   );
   await expect(page.locator('#health')).toHaveAttribute('data-value', '100');
-  await expect(page.locator('#weapon-name')).toHaveText('Револьвер');
+  await expect(page.locator('#weapon-name')).toHaveText('Дробовик');
   await page.keyboard.press('Escape');
   await page.locator('#leave').click();
   expect(errors).toEqual([]);
 });
 
-test('revolver fires once per click, reloads six rounds and preserves its magazine on slot change', async ({
+test('assault shotgun fires once per click, reloads six rounds and preserves its magazine on slot change', async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.locator('#map-select').selectOption('bastion');
-  await page.locator('#weapon-select').selectOption('revolver');
+  await page.locator('#weapon-select').selectOption('rifle');
+  await page.locator('#assault-loadout').selectOption('shotgun');
   await page.locator('#play').click();
   await expect(page.locator('#app')).toHaveClass(/playing/);
   await expect(page.locator('#ready')).toBeDisabled();
@@ -88,7 +90,7 @@ test('revolver fires once per click, reloads six rounds and preserves its magazi
   await page.mouse.down();
   await expect(page.locator('#ammo')).toHaveText('5 / 6');
   // Holding the trigger past its cooldown must not fire a second round.
-  await page.waitForTimeout(650);
+  await page.waitForTimeout(1000);
   await expect(page.locator('#ammo')).toHaveText('5 / 6');
   await page.mouse.up();
   await page.keyboard.press('2');
@@ -97,9 +99,12 @@ test('revolver fires once per click, reloads six rounds and preserves its magazi
   await expect(page.locator('#ammo')).toHaveText('5 / 6');
   await page.keyboard.press('q');
   await expect(page.locator('#movement-hud')).toHaveAttribute('data-aim', '1');
+  await page.waitForTimeout(300);
   await page.mouse.click(600, 350);
   await expect(page.locator('#ammo')).toHaveText('4 / 6');
-  await page.screenshot({ path: test.info().outputPath('revolver-city.png') });
+  await page.screenshot({
+    path: test.info().outputPath('assault-shotgun-city.png'),
+  });
   await page.keyboard.press('r');
   await expect(page.locator('#ammo')).toContainText('Перезарядка');
   await expect(page.locator('#ammo')).toHaveText('6 / 6');

@@ -1,8 +1,24 @@
 import { expect, test } from '@playwright/test';
 
-for (const mapId of ['bastion', 'sandgate']) {
+for (const [mapId, quality, mode = 'bots'] of [
+  ['bastion', 'low', 'control'],
+  ['bastion', 'low', 'mission'],
+  ['bastion', 'medium'],
+  ['bastion', 'low'],
+  ['switchyard', 'medium'],
+  ['switchyard', 'low'],
+  ['sandgate', 'medium'],
+  ['sandgate', 'low'],
+  ['spillway', 'medium'],
+  ['spillway', 'low'],
+] as const) {
   test(
-    mapId + ' firefight stays within the CPU frame budget',
+    mapId +
+      ' ' +
+      quality +
+      ' ' +
+      mode +
+      ' firefight stays within the CPU frame budget',
     async ({ page }, info) => {
       await page.addInitScript(() => {
         const samples: { work: number; interval: number }[] = [];
@@ -26,8 +42,9 @@ for (const mapId of ['bastion', 'sandgate']) {
       await page.locator('#nickname').fill('Perf');
       await page.locator('#join').click();
       await expect(page.locator('#play')).toBeEnabled();
+      await page.locator('#graphics-quality').selectOption(quality);
       await page.locator('#map-select').selectOption(mapId);
-      await page.locator('#mode-select').selectOption('bots');
+      await page.locator('#mode-select').selectOption(mode);
       await page.locator('#bot-count').selectOption('5');
       await page.locator('#play').click();
       await expect(page.locator('#app')).toHaveClass(/playing/);
@@ -64,7 +81,7 @@ for (const mapId of ['bastion', 'sandgate']) {
         body: JSON.stringify(result, null, 2),
         contentType: 'application/json',
       });
-      console.log(JSON.stringify(result));
+      console.log(JSON.stringify({ mapId, quality, mode, ...result }));
       expect(result.frames).toBeGreaterThan(60);
       expect(result.workP95).toBeLessThan(16.7);
       await page.keyboard.press('Escape');

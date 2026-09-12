@@ -1,0 +1,473 @@
+<div id="game-map-plans">
+  <div class="viz-controls" role="tablist" aria-label="Карта">
+    <button
+      class="btn btn-primary"
+      type="button"
+      data-map="bastion"
+      aria-pressed="true"
+    >
+      Bastion
+    </button>
+    <button class="btn" type="button" data-map="sandgate" aria-pressed="false">
+      Sandgate
+    </button>
+    <button
+      class="btn"
+      type="button"
+      data-map="switchyard"
+      aria-pressed="false"
+    >
+      Switchyard
+    </button>
+  </div>
+  <p id="game-map-summary" aria-live="polite">
+    Операция и волны. Последовательная оборона от площади к архиву и служебному
+    двору.
+  </p>
+  <svg
+    viewBox="0 0 640 470"
+    role="img"
+    aria-labelledby="game-map-title game-map-desc"
+  >
+    <title id="game-map-title">Предлагаемый план Bastion</title>
+    <desc id="game-map-desc">
+      Схематичный вид сверху с боевыми зонами, маршрутами и точками изменений.
+    </desc>
+    <defs>
+      <marker
+        id="map-arrow-a"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill="var(--viz-series-1)"></path>
+      </marker>
+      <marker
+        id="map-arrow-b"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill="var(--viz-series-2)"></path>
+      </marker>
+      <marker
+        id="map-arrow-c"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+      >
+        <path d="M0,0 L8,4 L0,8 Z" fill="var(--viz-series-3)"></path>
+      </marker>
+    </defs>
+
+    <g data-plan="bastion">
+      <rect class="arena" x="46" y="24" width="548" height="410"></rect>
+      <text class="north" x="320" y="18">СЕВЕР · АРХИВ</text>
+      <rect
+        class="zone zone-secondary"
+        x="210"
+        y="45"
+        width="220"
+        height="70"
+      ></rect>
+      <text class="zone-label" x="320" y="82">АРХИВ · ЦЕЛЬ 2</text>
+      <rect class="solid" x="265" y="115" width="110" height="18"></rect>
+      <text class="minor" x="320" y="128">смещённый проход</text>
+
+      <rect
+        class="zone zone-primary"
+        x="215"
+        y="145"
+        width="210"
+        height="150"
+      ></rect>
+      <text class="zone-label" x="320" y="210">АТРИУМ</text>
+      <text class="minor" x="320" y="229">ЦЕЛЬ 1 · максимум 2 угрозы</text>
+      <rect class="cover" x="242" y="172" width="35" height="66"></rect>
+      <rect class="cover" x="363" y="202" width="35" height="66"></rect>
+
+      <rect
+        class="zone zone-tertiary"
+        x="65"
+        y="270"
+        width="118"
+        height="96"
+      ></rect>
+      <text class="zone-label" x="124" y="315">КАФЕ</text>
+      <text class="minor" x="124" y="334">закрытый фланг</text>
+      <rect
+        class="zone zone-tertiary"
+        x="457"
+        y="75"
+        width="116"
+        height="108"
+      ></rect>
+      <text class="zone-label" x="515" y="119">СЛУЖЕБНЫЙ</text>
+      <text class="minor" x="515" y="138">ДВОР · ВЫХОД</text>
+      <rect
+        class="zone zone-secondary"
+        x="220"
+        y="337"
+        width="200"
+        height="70"
+      ></rect>
+      <text class="zone-label" x="320" y="373">ПЛОЩАДЬ · СТАРТ</text>
+
+      <path
+        class="route route-a"
+        d="M320 405 L320 300 L320 245 L320 133 L320 105"
+      ></path>
+      <path
+        class="route route-b"
+        d="M250 367 C185 367 168 338 168 315 C168 245 202 214 215 214"
+      ></path>
+      <path class="route route-c" d="M425 220 C475 220 515 195 515 177"></path>
+      <path
+        class="route route-b dashed"
+        d="M168 287 C168 135 238 75 282 75"
+      ></path>
+      <path
+        class="route route-c dashed"
+        d="M358 75 C430 74 462 95 462 122"
+      ></path>
+
+      <rect class="upper" x="277" y="165" width="86" height="82"></rect>
+      <text class="minor" x="320" y="196">КРЫША</text>
+      <text class="minor" x="320" y="215">1 сектор обзора</text>
+      <circle class="callout" cx="386" cy="126" r="13"></circle>
+      <text class="callout-text" x="386" y="131">1</text>
+      <circle class="callout" cx="371" cy="181" r="13"></circle>
+      <text class="callout-text" x="371" y="186">2</text>
+      <circle class="callout" cx="477" cy="165" r="13"></circle>
+      <text class="callout-text" x="477" y="170">3</text>
+      <circle class="callout" cx="168" cy="287" r="13"></circle>
+      <text class="callout-text" x="168" y="292">4</text>
+    </g>
+
+    <g data-plan="sandgate" hidden>
+      <rect class="arena" x="46" y="24" width="548" height="410"></rect>
+      <text class="north" x="320" y="18">СЕВЕР · ДАЛЬНИЙ ОБХОД</text>
+      <rect
+        class="zone zone-tertiary"
+        x="72"
+        y="53"
+        width="185"
+        height="100"
+      ></rect>
+      <text class="zone-label" x="164" y="94">B · ДВОР</text>
+      <text class="minor" x="164" y="114">ближний бой</text>
+      <rect
+        class="zone zone-secondary"
+        x="383"
+        y="53"
+        width="185"
+        height="100"
+      ></rect>
+      <text class="zone-label" x="475" y="94">A · ДВОР</text>
+      <text class="minor" x="475" y="114">дальняя дуэль</text>
+
+      <rect class="solid" x="270" y="44" width="100" height="35"></rect>
+      <text class="minor" x="320" y="66">задний обход</text>
+      <rect
+        class="zone zone-primary"
+        x="255"
+        y="176"
+        width="130"
+        height="82"
+      ></rect>
+      <text class="zone-label" x="320" y="210">MID</text>
+      <text class="minor" x="320" y="229">быстро, но открыто</text>
+
+      <path class="route route-b" d="M314 407 C190 385 140 308 150 151"></path>
+      <path class="route route-a" d="M326 407 C452 380 497 308 480 151"></path>
+      <path class="route route-c" d="M320 405 L320 257 L320 184 L320 80"></path>
+      <path
+        class="route route-b dashed"
+        d="M150 154 C195 180 223 208 255 218"
+      ></path>
+      <path
+        class="route route-a dashed"
+        d="M385 218 C425 205 455 178 480 151"
+      ></path>
+
+      <rect class="cover" x="96" y="196" width="54" height="76"></rect>
+      <rect class="cover" x="150" y="240" width="46" height="32"></rect>
+      <text class="zone-label" x="145" y="300">ТОННЕЛИ</text>
+      <text class="minor" x="145" y="319">2 поворота · 4–14 м</text>
+      <rect class="upper" x="492" y="183" width="52" height="76"></rect>
+      <text class="zone-label" x="497" y="288">ДЛИННАЯ</text>
+      <text class="minor" x="497" y="307">20–40 м</text>
+      <rect
+        class="zone zone-secondary"
+        x="235"
+        y="350"
+        width="170"
+        height="62"
+      ></rect>
+      <text class="zone-label" x="320" y="382">ПЛОЩАДЬ · СПАВН</text>
+
+      <circle class="callout" cx="320" cy="185" r="13"></circle>
+      <text class="callout-text" x="320" y="190">1</text>
+      <circle class="callout" cx="196" cy="253" r="13"></circle>
+      <text class="callout-text" x="196" y="258">2</text>
+      <circle class="callout" cx="518" cy="183" r="13"></circle>
+      <text class="callout-text" x="518" y="188">3</text>
+      <circle class="callout" cx="320" cy="62" r="13"></circle>
+      <text class="callout-text" x="320" y="67">4</text>
+    </g>
+
+    <g data-plan="switchyard" hidden>
+      <rect class="arena" x="58" y="28" width="524" height="402"></rect>
+      <text class="north" x="320" y="20">СЕВЕР · ЛИТЕЙНАЯ</text>
+      <rect
+        class="zone zone-secondary"
+        x="190"
+        y="50"
+        width="300"
+        height="90"
+      ></rect>
+      <text class="zone-label" x="340" y="89">ЛИТЕЙНАЯ</text>
+      <text class="minor" x="340" y="108">комбинированный бой</text>
+      <rect
+        class="zone zone-tertiary"
+        x="190"
+        y="318"
+        width="300"
+        height="88"
+      ></rect>
+      <text class="zone-label" x="340" y="356">ОХЛАЖДЕНИЕ</text>
+      <text class="minor" x="340" y="375">движение и стрельба</text>
+
+      <rect
+        class="zone zone-primary"
+        x="76"
+        y="72"
+        width="92"
+        height="306"
+      ></rect>
+      <text class="zone-label vertical-label" x="118" y="226">ПОЛИГОН</text>
+      <circle class="target" cx="118" cy="120" r="9"></circle>
+      <circle class="target" cx="118" cy="161" r="9"></circle>
+      <circle class="target" cx="118" cy="202" r="9"></circle>
+
+      <rect class="solid" x="254" y="204" width="172" height="58"></rect>
+      <text class="zone-label" x="340" y="230">НИЗКИЙ ПЕРЕХОД</text>
+      <text class="minor" x="340" y="248">игрок: присесть · бот: обход</text>
+      <path class="route route-c" d="M210 365 C260 300 273 265 282 262"></path>
+      <path class="route route-c" d="M398 204 C410 170 440 128 475 105"></path>
+      <path
+        class="route route-b dashed"
+        d="M210 95 C520 120 538 332 470 365 C390 418 230 403 210 365"
+      ></path>
+      <path class="route route-a" d="M166 225 L250 225"></path>
+
+      <circle class="callout" cx="168" cy="225" r="13"></circle>
+      <text class="callout-text" x="168" y="230">1</text>
+      <circle class="callout" cx="282" cy="262" r="13"></circle>
+      <text class="callout-text" x="282" y="267">2</text>
+      <circle class="callout" cx="475" cy="105" r="13"></circle>
+      <text class="callout-text" x="475" y="110">3</text>
+      <circle class="callout" cx="470" cy="365" r="13"></circle>
+      <text class="callout-text" x="470" y="370">4</text>
+    </g>
+  </svg>
+  <div class="map-legend text-small">
+    <span><i class="legend-line legend-a"></i>основной путь</span>
+    <span><i class="legend-line legend-b"></i>закрытый фланг</span>
+    <span><i class="legend-line legend-c"></i>быстрая связь</span>
+    <span><i class="legend-callout">1</i>изменение из плана</span>
+  </div>
+</div>
+
+<style>
+  #game-map-plans {
+    color: var(--foreground);
+    width: 100%;
+  }
+  #game-map-plans [hidden] {
+    display: none;
+  }
+  #game-map-plans .viz-controls {
+    margin-bottom: 10px;
+  }
+  #game-map-summary {
+    color: var(--muted-foreground);
+    margin: 8px 0 4px;
+  }
+  #game-map-plans svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 560px;
+  }
+  #game-map-plans text {
+    fill: var(--foreground);
+    font-size: 12px;
+    text-anchor: middle;
+  }
+  #game-map-plans .arena {
+    fill: color-mix(in srgb, var(--muted) 32%, transparent);
+    stroke: var(--border);
+    stroke-width: 2;
+  }
+  #game-map-plans .zone {
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  #game-map-plans .zone-primary {
+    fill: color-mix(in srgb, var(--viz-series-1) 18%, transparent);
+  }
+  #game-map-plans .zone-secondary {
+    fill: color-mix(in srgb, var(--viz-series-2) 16%, transparent);
+  }
+  #game-map-plans .zone-tertiary {
+    fill: color-mix(in srgb, var(--viz-series-3) 16%, transparent);
+  }
+  #game-map-plans .solid {
+    fill: var(--muted);
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+  #game-map-plans .cover {
+    fill: color-mix(in srgb, var(--foreground) 22%, transparent);
+    stroke: var(--border);
+  }
+  #game-map-plans .upper {
+    fill: color-mix(in srgb, var(--viz-series-4) 20%, transparent);
+    stroke: var(--viz-series-4);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+  }
+  #game-map-plans .route {
+    fill: none;
+    stroke-width: 4;
+    marker-end: url(#map-arrow-a);
+  }
+  #game-map-plans .route-a {
+    stroke: var(--viz-series-1);
+    marker-end: url(#map-arrow-a);
+  }
+  #game-map-plans .route-b {
+    stroke: var(--viz-series-2);
+    marker-end: url(#map-arrow-b);
+  }
+  #game-map-plans .route-c {
+    stroke: var(--viz-series-3);
+    marker-end: url(#map-arrow-c);
+  }
+  #game-map-plans .dashed {
+    stroke-dasharray: 8 6;
+  }
+  #game-map-plans .zone-label {
+    font-weight: 500;
+  }
+  #game-map-plans .minor {
+    fill: var(--muted-foreground);
+  }
+  #game-map-plans .north {
+    fill: var(--muted-foreground);
+  }
+  #game-map-plans .callout {
+    fill: var(--primary);
+    stroke: var(--primary-foreground);
+    stroke-width: 1;
+  }
+  #game-map-plans .callout-text {
+    fill: var(--primary-foreground);
+    font-weight: 500;
+  }
+  #game-map-plans .target {
+    fill: var(--viz-series-1);
+  }
+  #game-map-plans .vertical-label {
+    transform: rotate(-90deg);
+    transform-origin: 118px 226px;
+  }
+  #game-map-plans .map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 18px;
+    color: var(--muted-foreground);
+  }
+  #game-map-plans .map-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #game-map-plans .legend-line {
+    display: inline-block;
+    width: 24px;
+    height: 3px;
+  }
+  #game-map-plans .legend-a {
+    background: var(--viz-series-1);
+  }
+  #game-map-plans .legend-b {
+    background: var(--viz-series-2);
+  }
+  #game-map-plans .legend-c {
+    background: var(--viz-series-3);
+  }
+  #game-map-plans .legend-callout {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-style: normal;
+  }
+  @media (max-width: 520px) {
+    #game-map-plans .map-legend {
+      justify-content: flex-start;
+    }
+  }
+</style>
+
+<script>
+  (() => {
+    const root = document.getElementById('game-map-plans');
+    const summary = root.querySelector('#game-map-summary');
+    const title = root.querySelector('#game-map-title');
+    const descriptions = {
+      bastion: {
+        title: 'Предлагаемый план Bastion',
+        summary:
+          'Операция и волны. Последовательная оборона от площади к архиву и служебному двору.',
+      },
+      sandgate: {
+        title: 'Предлагаемый план Sandgate',
+        summary:
+          'PvP и FFA. Три маршрута с разной дистанцией боя и дорогой безопасной ротацией.',
+      },
+      switchyard: {
+        title: 'Предлагаемый план Switchyard',
+        summary:
+          'Обучение. Изолированный тир, маршрут движения и короткий комбинированный экзамен.',
+      },
+    };
+    root.querySelectorAll('[data-map]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const selected = button.dataset.map;
+        root.querySelectorAll('[data-map]').forEach((item) => {
+          const active = item === button;
+          item.setAttribute('aria-pressed', String(active));
+          item.classList.toggle('btn-primary', active);
+        });
+        root.querySelectorAll('[data-plan]').forEach((plan) => {
+          plan.toggleAttribute('hidden', plan.dataset.plan !== selected);
+        });
+        title.textContent = descriptions[selected].title;
+        summary.textContent = descriptions[selected].summary;
+      });
+    });
+  })();
+</script>

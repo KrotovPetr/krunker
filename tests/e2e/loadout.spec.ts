@@ -14,11 +14,22 @@ test('class cards explain the loadout and the machine gun fires automatically wi
   await page.getByLabel('Твой ник').fill('Gunner');
   await page.locator('#join').click();
   await expect(page.locator('#play')).toBeEnabled();
+  await expect(page.locator('#weapon-select option')).toHaveCount(5);
+  await expect(page.locator('#assault-loadout')).toBeVisible();
+  await page.locator('#assault-loadout').selectOption('shotgun');
+  await expect(page.locator('#class-name')).toHaveText('Штурмовик');
+  await expect(page.locator('#class-ammo')).toHaveText('6 + 18');
+  await expect(page.locator('#class-health')).toHaveText('100 HP');
+  await expect(page.locator('#weapon-select')).toHaveValue('rifle');
+  await page.screenshot({
+    path: test.info().outputPath('assault-loadout-menu.png'),
+  });
+  await page.locator('#assault-loadout').selectOption('rifle');
+  await expect(page.locator('#class-ammo')).toHaveText('30 + 90');
   const classes = [
     ['sniper', 'Снайпер'],
-    ['shotgun', 'Тяжёлый боец'],
     ['smg', 'Разведчик'],
-    ['revolver', 'Стрелок'],
+    ['sapper', 'Инженер'],
     ['rifle', 'Штурмовик'],
     ['lmg', 'Пулемётчик'],
   ];
@@ -27,10 +38,13 @@ test('class cards explain the loadout and the machine gun fires automatically wi
     await expect(page.locator('#class-name')).toHaveText(name!);
     await expect(page.locator('#weapon-description')).not.toBeEmpty();
     await expect(page.locator('#class-tradeoff')).not.toBeEmpty();
+    await expect(page.locator('#class-health')).toHaveText('100 HP');
+    if (weapon !== 'rifle')
+      await expect(page.locator('#assault-loadout')).toBeHidden();
   }
   await expect(page.locator('#class-ammo')).toHaveText('100 + 300');
   await expect(page.locator('#class-reload')).toHaveText('6 с');
-  await expect(page.locator('#class-speed')).toHaveText('5.1 м/с');
+  await expect(page.locator('#class-speed')).toHaveText('7.0 м/с');
   await expect(page.locator('#class-rate')).toHaveText('720 / мин');
   await page
     .locator('#class-card')

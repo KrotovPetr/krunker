@@ -1,5 +1,9 @@
 import { afterEach, beforeAll, expect, it } from 'vitest';
-import type { ClientCommand, WeaponId } from '@fps/protocol';
+import type {
+  ClientCommand,
+  SelectableWeaponId,
+  WeaponId,
+} from '@fps/protocol';
 import {
   createGame,
   createPrediction,
@@ -8,6 +12,7 @@ import {
   initializePhysics,
   TEST_PAD,
   WEAPONS,
+  PLAYABLE_WEAPONS,
   weaponSpread,
 } from '../index.js';
 import type { Game } from '../index.js';
@@ -23,7 +28,7 @@ const step = (game: Game, ticks = 1) => {
 const player = (game: Game) =>
   game.snapshot().players.find((p) => p.id === 'p')!;
 const fire = { type: 'fire', inputSeq: 0, yaw: 0, pitch: 0 } as const;
-function setup(weapon: WeaponId = 'lmg', seed = 0) {
+function setup(weapon: SelectableWeaponId = 'lmg', seed = 0) {
   const game = createGame(DEFAULT_CONFIG, TEST_PAD, seed);
   resources.push(game);
   game.enqueue({ type: 'join', playerId: 'p', nickname: 'Gunner' });
@@ -45,8 +50,12 @@ it('sustains fast accurate fire, empties a 100-round box, and cannot fire during
     send(game, fire);
     shots += game.step(1 / 60).filter((event) => event.type === 'shot').length;
     const p = player(game);
-    expect(weaponSpread(WEAPONS.lmg, 0, true, 0, p.bloom)).toBeLessThan(0.012);
-    expect(weaponSpread(WEAPONS.lmg, 1, true, 0, p.bloom)).toBeLessThan(0.006);
+    expect(weaponSpread(WEAPONS.lmg, 0, true, 0, p.bloom)).toBeLessThanOrEqual(
+      0.057,
+    );
+    expect(weaponSpread(WEAPONS.lmg, 1, true, 0, p.bloom)).toBeLessThanOrEqual(
+      0.0141,
+    );
     if (tick === 59) expect(shots).toBe(12);
   }
   expect(shots).toBe(100);
@@ -114,7 +123,7 @@ it('keeps the heavy class slow on both server and client, including with the pis
       ).toBeCloseTo(speeds[1]!);
     }
   }
-  expect(speeds[1]! / speeds[0]!).toBeCloseTo(0.6);
+  expect(speeds[1]! / speeds[0]!).toBeCloseTo(0.82);
 });
 
 it('equips machine gunners in bot battles and among optional wave allies', () => {
@@ -131,7 +140,7 @@ it('equips machine gunners in bot battles and among optional wave allies', () =>
     expect(new Set(weapons).size).toBe(5);
     weapons.forEach((weapon) => encountered.add(weapon));
   }
-  expect([...encountered].sort()).toEqual(Object.keys(WEAPONS).sort());
+  expect([...encountered].sort()).toEqual([...PLAYABLE_WEAPONS].sort());
   const game = setup();
   send(game, { type: 'setMode', mode: 'bots' });
   send(game, { type: 'setBots', count: 5, difficulty: 'normal' });

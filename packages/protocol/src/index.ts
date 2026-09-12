@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// Static map collisions changed; clients with the previous maps must reload.
-export const PROTOCOL_VERSION = 12;
+// Modes, map metadata and snapshot schemas must match between client and server.
+export const PROTOCOL_VERSION = 22;
 export const ROOM_TYPE = 'arena';
 export const MAX_PLAYERS = 8;
 export const TICK_RATE = 60;
@@ -26,15 +26,24 @@ export const joinOptionsSchema = z.strictObject({
   protocolVersion: z.literal(PROTOCOL_VERSION),
 });
 
-export const mapIdSchema = z.enum(['switchyard', 'bastion', 'sandgate']);
+export const mapIdSchema = z.enum([
+  'switchyard',
+  'bastion',
+  'sandgate',
+  'spillway',
+]);
 export const modeSchema = z.enum([
   'arena',
   'training',
   'bots',
   'parkour',
   'waves',
+  'control',
+  'mission',
 ]);
 export type GameMode = z.infer<typeof modeSchema>;
+export const isTeamMode = (mode: GameMode) =>
+  mode === 'waves' || mode === 'control' || mode === 'mission';
 export const difficultySchema = z.enum(['easy', 'normal', 'hard']);
 export type BotDifficulty = z.infer<typeof difficultySchema>;
 
@@ -45,8 +54,12 @@ export const weaponSchema = z.enum([
   'smg',
   'revolver',
   'lmg',
+  'sapper',
 ]);
 export type WeaponId = z.infer<typeof weaponSchema>;
+// Keep the retired revolver readable in historical results, not selectable.
+export const selectableWeaponSchema = weaponSchema.exclude(['revolver']);
+export type SelectableWeaponId = z.infer<typeof selectableWeaponSchema>;
 const sequence = z.number().int().min(0).max(0xffffffff);
 const look = {
   yaw: z.number().finite().min(-Math.PI).max(Math.PI),
@@ -62,6 +75,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     type: z.literal('input'),
     seq: sequence,
     aiming: z.boolean().optional(),
+    interacting: z.boolean().optional(),
     ...look,
     buttons: z.strictObject({
       forward: z.boolean(),
@@ -80,11 +94,21 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     viewTick: sequence.optional(),
   }),
   z.strictObject({ type: z.literal('reload') }),
+  z.strictObject({ type: z.literal('deployMine') }),
+  z.strictObject({
+    type: z.literal('squadOrder'),
+    kind: z.enum(['follow', 'hold', 'attack']),
+    ...look,
+  }),
+  z.strictObject({ type: z.literal('throwGrenade'), ...look }),
   z.strictObject({
     type: z.literal('selectSlot'),
-    slot: z.enum(['primary', 'secondary']),
+    slot: z.enum(['primary', 'secondary', 'knife']),
   }),
-  z.strictObject({ type: z.literal('selectWeapon'), weapon: weaponSchema }),
+  z.strictObject({
+    type: z.literal('selectWeapon'),
+    weapon: selectableWeaponSchema,
+  }),
   z.strictObject({ type: z.literal('ready'), ready: z.boolean() }),
   z.strictObject({ type: z.literal('setMode'), mode: modeSchema }),
   z.strictObject({ type: z.literal('setMap'), mapId: mapIdSchema }),
@@ -96,6 +120,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('startChallenge') }),
   z.strictObject({ type: z.literal('cancelChallenge') }),
   z.strictObject({ type: z.literal('restartWaves') }),
+  z.strictObject({ type: z.literal('restartMission') }),
   z.strictObject({
     type: z.literal('setAllies'),
     count: z.number().int().min(0).max(3),
@@ -156,6 +181,7 @@ export interface ChallengeResult {
   course: string;
 }
 export interface PlayerSnapshot extends MovementSnapshot {
+  colorIndex: number;
   id: string;
   bot: boolean;
   ally: boolean;
@@ -163,6 +189,9 @@ export interface PlayerSnapshot extends MovementSnapshot {
   secondaryReserve: number;
   bloom: number;
   supplyCooldown: number;
+  mineCooldown: number;
+  grenades: number;
+  healthCooldown: number;
   challenge: ChallengeSnapshot;
   nickname: string;
   ready: boolean;
@@ -173,7 +202,7 @@ export interface PlayerSnapshot extends MovementSnapshot {
   maxHealth: number;
   ammo: number;
   secondaryAmmo: number;
-  slot: 'primary' | 'secondary';
+  slot: 'primary' | 'secondary' | 'knife';
   reloadRemaining: number;
   fireRemaining: number;
   respawnRemaining: number;
@@ -192,7 +221,68 @@ export interface WaveSnapshot {
   cleared: number;
   runId: number;
 }
+export interface ControlSnapshot {
+  progress: number;
+  owner: 'neutral' | 'allies' | 'enemies';
+  contested: boolean;
+  allies: number;
+  enemies: number;
+  allyScore: number;
+  enemyScore: number;
+}
+export interface SquadOrderSnapshot {
+  kind: 'auto' | 'follow' | 'hold' | 'attack';
+  commanderId: string;
+  position: Vec3;
+  remaining: number;
+  serial: number;
+}
+export interface MineSnapshot {
+  id: string;
+  ownerId: string;
+  position: Vec3;
+  armed: boolean;
+}
+export interface GrenadeSnapshot {
+  id: string;
+  ownerId: string;
+  position: Vec3;
+  remaining: number;
+}
+export type MissionStage =
+  | 'idle'
+  | 'dispatch'
+  | 'cell'
+  | 'deliver'
+  | 'switch'
+  | 'defend'
+  | 'override'
+  | 'extract'
+  | 'departing'
+  | 'complete'
+  | 'failed';
+export interface MissionSnapshot {
+  stage: MissionStage;
+  checkpoint: MissionStage;
+  progress: number;
+  remaining: number;
+  elapsed: number;
+  carrierId: string;
+  cargo: Vec3;
+  queued: number;
+  alive: number;
+  runId: number;
+  serial: number;
+  attempts: number;
+  boarded: number;
+  required: number;
+}
 export interface GameSnapshot {
+  mission?: MissionSnapshot;
+  control?: ControlSnapshot;
+  squadOrder?: SquadOrderSnapshot;
+  grenades: GrenadeSnapshot[];
+  mines: MineSnapshot[];
   wave: WaveSnapshot;
   mapId: string;
   tick: number;
@@ -209,9 +299,31 @@ export interface GameSnapshot {
 }
 export type GameEvent =
   | {
+      type: 'equipmentRejected';
+      playerId: string;
+      item: 'mine' | 'grenade';
+      reason:
+        | 'unavailable'
+        | 'sapperOnly'
+        | 'airborne'
+        | 'cooldown'
+        | 'empty'
+        | 'limit'
+        | 'reload'
+        | 'blocked';
+    }
+  | { type: 'grenadeThrown'; playerId: string }
+  | { type: 'healed'; playerId: string; amount: number }
+  | { type: 'explosion'; playerId: string; position: Vec3 }
+  | {
       type: 'commandRejected';
       playerId: string;
-      reason: 'hostOnly' | 'matchRunning' | 'squadFull';
+      reason:
+        | 'hostOnly'
+        | 'matchRunning'
+        | 'squadFull'
+        | 'invalidOrder'
+        | 'orderCooldown';
     }
   | { type: 'resupply'; playerId: string }
   | { type: 'playerJoined'; playerId: string }
@@ -237,7 +349,12 @@ export type GameEvent =
       targetId: string;
       attacker: string;
       victim: string;
-      weapon: WeaponId | 'pistol' | 'knife';
+      weapon: WeaponId | 'pistol' | 'knife' | 'mine' | 'grenade';
+      headshot: boolean;
+      attackerAirborne: boolean;
+      victimAirborne: boolean;
+      noScope: boolean;
+      distance: number;
     }
   | {
       type: 'practiceHit';
@@ -263,7 +380,9 @@ export type ServerEvent =
         | 'notImplemented'
         | 'hostOnly'
         | 'matchRunning'
-        | 'squadFull';
+        | 'squadFull'
+        | 'invalidOrder'
+        | 'orderCooldown';
     };
 
 export const challengeResultSchema = z.object({

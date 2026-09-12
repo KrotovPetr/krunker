@@ -10,6 +10,117 @@ import {
 import type { MapDefinition } from '../index.js';
 import { createBotBrain, createNavigation } from './brain.js';
 beforeAll(initializePhysics);
+it('reaches ordered positions, holds them, follows a moved destination and bounds replanning', () => {
+  const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
+    world = createCollisionWorld(TEST_PAD);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'Ally' });
+    game.step(1 / 60);
+    const player = game.snapshot().players[0]!;
+    Object.assign(player, {
+      ready: true,
+      position: { x: 0, y: 0.03, z: 0 },
+      yaw: 0,
+    });
+    const brain = createBotBrain(0),
+      nav = createNavigation(TEST_PAD, world);
+    let plans = 0;
+    const counted = {
+      ...nav,
+      plan: (...args: Parameters<typeof nav.plan>) => {
+        plans++;
+        return nav.plan(...args);
+      },
+    };
+    const directive = {
+      key: 'order:1',
+      position: { x: 0, y: 0.03, z: -5 },
+      radius: 1.3,
+    };
+    const simulate = (from: number, to: number) => {
+      for (let tick = from; tick < to; tick++) {
+        const decision = brain.update(
+          player,
+          [],
+          world,
+          counted,
+          'normal',
+          1 / 60,
+          tick,
+          { team: 'defenders', directive },
+        );
+        Object.assign(
+          player,
+          predictPlayerMovement(player, decision.input, 1 / 60, world),
+        );
+      }
+    };
+    simulate(0, 240);
+    expect(Math.hypot(player.position.x, player.position.z + 5)).toBeLessThan(
+      1.4,
+    );
+    const stopped = { ...player.position };
+    simulate(240, 360);
+    expect(
+      Math.hypot(player.position.x - stopped.x, player.position.z - stopped.z),
+    ).toBeLessThan(0.1);
+    directive.position = { x: 5, y: 0.03, z: -5 };
+    simulate(360, 720);
+    expect(
+      Math.hypot(player.position.x - 5, player.position.z + 5),
+    ).toBeLessThan(1.4);
+    expect(plans).toBeLessThan(20);
+    brain.update(player, [], world, counted, 'normal', 1 / 60, 721, {});
+    expect(brain.intent().goalId).not.toBe('order:1');
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
+it('machine gunners stop strafing in their firing range', () => {
+  const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
+    world = createCollisionWorld(TEST_PAD);
+  try {
+    game.enqueue({ type: 'join', playerId: 'p', nickname: 'Gunner' });
+    game.step(1 / 60);
+    const player = game.snapshot().players[0]!;
+    Object.assign(player, {
+      weapon: 'lmg',
+      position: { x: 0, y: 0.03, z: 0 },
+      yaw: 0,
+      ready: true,
+      protectionRemaining: 0,
+    });
+    const target = {
+      ...structuredClone(player),
+      id: 'target',
+      position: { x: 0, y: 0.03, z: -18 },
+    };
+    const brain = createBotBrain(1),
+      nav = createNavigation(TEST_PAD, world);
+    let shots = 0;
+    for (let tick = 0; tick < 180; tick++) {
+      const decision = brain.update(
+        player,
+        [target],
+        world,
+        nav,
+        'normal',
+        1 / 60,
+        tick,
+      );
+      expect(decision.input.buttons.left).toBe(false);
+      expect(decision.input.buttons.right).toBe(false);
+      if (decision.fire) shots++;
+      player.yaw = decision.input.yaw;
+      player.pitch = decision.input.pitch;
+    }
+    expect(shots).toBeGreaterThan(0);
+  } finally {
+    game.dispose();
+    world.dispose();
+  }
+});
 it('needs a settled aim and reaction window before firing, and never snaps around', () => {
   const g = createGame(DEFAULT_CONFIG, TEST_PAD, 0),
     world = createCollisionWorld(TEST_PAD);

@@ -52,6 +52,8 @@ export function challengeInput(
   player: PlayerSnapshot,
   input: InputCommand,
 ): InputCommand {
+  if (player.slot === 'knife' && input.aiming)
+    input = { ...input, aiming: false };
   const c = player.challenge;
   return c.status === 'countdown' ||
     (c.kind === 'training' && c.status === 'running')

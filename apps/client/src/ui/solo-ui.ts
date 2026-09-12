@@ -1,4 +1,5 @@
 import type { ChallengeResult, GameSnapshot } from '@fps/protocol';
+import { isTeamMode } from '@fps/protocol';
 import {
   PARKOUR_CHECKPOINTS,
   challengeActive,
@@ -12,6 +13,8 @@ const el = (id: string) => document.getElementById(id)!;
 const names = {
   arena: 'Арена',
   waves: 'Оборона',
+  control: 'Удержание точки',
+  mission: 'Последний рейс',
   training: 'Испытание полигона',
   bots: 'Бой с ботами',
   parkour: 'Паркур на время',
@@ -38,6 +41,8 @@ export function createSoloUI() {
       mapSelect.disabled =
         !host ||
         solo ||
+        snapshot.mode === 'control' ||
+        snapshot.mode === 'mission' ||
         (snapshot.mode === 'arena' && snapshot.phase === 'active');
       const map = getMap(snapshot.mapId);
       el('map-name').textContent = (map.name ?? map.id).toUpperCase();
@@ -51,13 +56,16 @@ export function createSoloUI() {
         : mode.disabled
           ? 'Режим можно сменить после раунда'
           : 'Ты выбираешь режим комнаты';
-      el('ally-settings').hidden = snapshot.mode !== 'waves';
+      el('ally-settings').hidden = !isTeamMode(snapshot.mode);
+      const defenders = snapshot.players.filter((p) => !p.bot || p.ally);
+      el('squad-summary').textContent =
+        `Отряд: ${defenders.filter((p) => !p.bot).length}/4 друзей · ${defenders.filter((p) => p.ally).length} союзных ботов · ${defenders.filter((p) => p.ready && p.connected && p.health > 0).length} в строю`;
       (el('ally-count') as HTMLSelectElement).value = String(
         snapshot.allyCount,
       );
       (el('ally-count') as HTMLSelectElement).disabled = !host;
       el('bot-settings').hidden =
-        snapshot.mode !== 'bots' && snapshot.mode !== 'waves';
+        snapshot.mode !== 'bots' && !isTeamMode(snapshot.mode);
       el('bot-count-label').textContent =
         snapshot.mode === 'waves' ? 'Одновременно на карте' : 'Соперники';
       for (const key of ['bot-count', 'bot-difficulty'])
@@ -70,20 +78,36 @@ export function createSoloUI() {
       el('scores').hidden = solo;
       el('solo-hud').hidden = !solo;
       el('mode-description').textContent =
-        snapshot.mode === 'training'
-          ? '30 секунд. Стреляй по зелёной мишени с линии огня. R — перезарядка. Оружие фиксируется на попытку.'
-          : snapshot.mode === 'parkour'
-            ? 'Пройди 11 колец по порядку за 120 секунд. Зелёное кольцо — следующая точка. Прыжки и скольжение сохраняют скорость.'
-            : snapshot.mode === 'waves'
-              ? 'До 4 защитников против волн. Враги приходят со входов, союзники не наносят урон. Погибшие возвращаются между волнами. В паузе можно сменить класс.'
-              : snapshot.mode === 'bots'
-                ? 'Матч начнётся с одним готовым игроком. Боты целятся, обходят укрытия и возрождаются.'
-                : 'Свободная пристрелка до матча. Для старта нужны двое готовых игроков.';
+        snapshot.mode === 'mission'
+          ? 'Последний рейс: найдите диспетчера, запитайте трамвай и выведите отряд. Удерживайте F возле цели. Погибшие возвращаются на контрольных этапах. После поражения хозяин повторяет этап на R. До 4 друзей, союзные боты прикрывают. T: боты к заданию.'
+          : snapshot.mode === 'control'
+            ? 'Точка A под галереей Bastion. Захват 5 с, победа за 90 очков, матч 3 минуты. При сопернике на точке очки не идут. Возрождение через 3 с. Z: за мной, X: удерживать место под прицелом, T: к точке. Приказ действует 30 с. Союзный огонь выключен.'
+            : snapshot.mode === 'training'
+              ? '30 секунд. Стреляй по зелёной мишени с линии огня. R — перезарядка. Оружие фиксируется на попытку.'
+              : snapshot.mode === 'parkour'
+                ? 'Пройди 11 колец по порядку за 120 секунд. Зелёное кольцо — следующая точка. Прыжки и скольжение сохраняют скорость.'
+                : snapshot.mode === 'waves'
+                  ? 'До 4 защитников против волн. Враги приходят со входов, союзники не наносят урон. Погибшие возвращаются между волнами. В паузе можно сменить класс.'
+                  : snapshot.mode === 'bots'
+                    ? 'Матч начнётся с одним готовым игроком. Боты целятся, обходят укрытия и возрождаются.'
+                    : 'Свободная пристрелка до матча. Для старта нужны двое готовых игроков.';
       const wavesOption = mode.querySelector<HTMLOptionElement>(
         'option[value=waves]',
       );
       if (wavesOption)
         wavesOption.disabled =
+          snapshot.players.filter((p) => !p.bot).length > 4;
+      const controlOption = mode.querySelector<HTMLOptionElement>(
+        'option[value=control]',
+      );
+      if (controlOption)
+        controlOption.disabled =
+          snapshot.players.filter((p) => !p.bot).length > 4;
+      const missionOption = mode.querySelector<HTMLOptionElement>(
+        'option[value=mission]',
+      );
+      if (missionOption)
+        missionOption.disabled =
           snapshot.players.filter((p) => !p.bot).length > 4;
       el('restart-waves').hidden =
         snapshot.mode !== 'waves' || snapshot.wave.status !== 'defeat';

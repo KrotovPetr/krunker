@@ -8,11 +8,11 @@ import {
   ARENA,
 } from '../index.js';
 import type { Game } from '../index.js';
-import type { WeaponId } from '@fps/protocol';
+import type { SelectableWeaponId } from '@fps/protocol';
 beforeAll(initializePhysics);
 const games: Game[] = [];
 afterEach(() => games.splice(0).forEach((game) => game.dispose()));
-it.each<WeaponId>(['rifle', 'sniper', 'shotgun'])(
+it.each<SelectableWeaponId>(['rifle', 'sniper', 'shotgun'])(
   'allows solo practice with %s and reloads without starting a match',
   (weapon) => {
     const game = createGame(DEFAULT_CONFIG, TEST_PAD, 0);

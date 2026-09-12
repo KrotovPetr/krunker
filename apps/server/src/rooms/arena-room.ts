@@ -17,6 +17,7 @@ import {
   TICK_RATE,
   clientCommandSchema,
   joinOptionsSchema,
+  isTeamMode,
 } from '@fps/protocol';
 import type { ServerEvent } from '@fps/protocol';
 import { ArenaState } from '@fps/protocol/schema';
@@ -80,7 +81,7 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
       throw new ServerError(400, 'Invalid nickname or protocol version');
     }
     if (
-      this.state.mode === 'waves' &&
+      isTeamMode(this.state.mode) &&
       this.clients.length >= Math.min(4, this.config.maxPlayers - 1)
     )
       throw new ServerError(409, 'Wave squad is full');

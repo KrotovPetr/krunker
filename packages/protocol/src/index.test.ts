@@ -36,6 +36,7 @@ describe('client protocol', () => {
     ).toBe(false);
   });
   it.each([
+    { type: 'selectWeapon', weapon: 'revolver' },
     { type: 'fire', inputSeq: 0, yaw: 0, pitch: 0, damage: 100 },
     { type: 'fire', inputSeq: 0, yaw: Infinity, pitch: 0 },
     { type: 'fire', inputSeq: -1, yaw: 0, pitch: 0 },
@@ -44,6 +45,12 @@ describe('client protocol', () => {
     { type: 'fire', inputSeq: 0, yaw: 0, pitch: 0, aimProgress: 1 },
     { type: 'teleport', x: 100, y: 100, z: 100 },
     { type: 'reload', position: { x: 100, y: 0, z: 0 } },
+    { type: 'deployMine', position: { x: 100, y: 0, z: 0 } },
+    { type: 'deployMine', damage: 1000 },
+    { type: 'throwGrenade', yaw: Infinity, pitch: 0 },
+    { type: 'throwGrenade', yaw: 0, pitch: Math.PI },
+    { type: 'throwGrenade', yaw: 0, pitch: 0, damage: 1000 },
+    { type: 'throwGrenade', yaw: 0, pitch: 0, position: { x: 9, y: 9, z: 9 } },
     { type: 'ready', ready: 'yes' },
     { type: 'setBots', count: 500, difficulty: 'hard' },
     { type: 'setBots', count: 2, difficulty: 'aimbot' },
@@ -55,6 +62,17 @@ describe('client protocol', () => {
     expect(clientCommandSchema.safeParse(command).success).toBe(false);
   });
   it('accepts intent-only input', () => {
+    expect(
+      clientCommandSchema.safeParse({ type: 'throwGrenade', yaw: 0, pitch: -1 })
+        .success,
+    ).toBe(true);
+    expect(clientCommandSchema.safeParse({ type: 'deployMine' }).success).toBe(
+      true,
+    );
+    expect(
+      clientCommandSchema.safeParse({ type: 'selectWeapon', weapon: 'sapper' })
+        .success,
+    ).toBe(true);
     expect(
       clientCommandSchema.safeParse({
         type: 'input',

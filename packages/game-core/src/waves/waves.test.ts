@@ -229,7 +229,7 @@ describe('wave defense', () => {
     expect(g.snapshot().phase).toBe('results');
     const oldLife = human(g).lifeId;
     step(g, 600);
-    cmd(g, { type: 'selectWeapon', weapon: 'revolver' });
+    cmd(g, { type: 'selectWeapon', weapon: 'shotgun' });
     step(g);
     expect(human(g).health).toBe(0);
     expect(human(g).lifeId).toBe(oldLife);

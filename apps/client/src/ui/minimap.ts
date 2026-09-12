@@ -1,5 +1,6 @@
+import { isTeamMode } from '@fps/protocol';
 import type { GameSnapshot, ServerEvent } from '@fps/protocol';
-import { getMap, PARKOUR_CHECKPOINTS } from '@fps/game-core';
+import { getMap, PARKOUR_CHECKPOINTS, missionPoint } from '@fps/game-core';
 import type { MapDefinition } from '@fps/game-core';
 
 export function createMinimap() {
@@ -123,6 +124,37 @@ export function createMinimap() {
       }
       ctx.clearRect(0, 0, size, size);
       ctx.drawImage(base, 0, 0);
+      if (snapshot.mode === 'control' && map.control) {
+        const p = point(map.control.position.x, map.control.position.z);
+        ctx.strokeStyle = snapshot.control?.contested
+          ? '#ffe08a'
+          : snapshot.control?.owner === 'allies'
+            ? '#75e7d0'
+            : snapshot.control?.owner === 'enemies'
+              ? '#ff806d'
+              : '#fff0bb';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, map.control.radius * scale, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('A', p.x, p.y + 6);
+      }
+      if (
+        isTeamMode(snapshot.mode) &&
+        snapshot.squadOrder &&
+        snapshot.squadOrder.kind !== 'auto'
+      ) {
+        const p = point(
+          snapshot.squadOrder.position.x,
+          snapshot.squadOrder.position.z,
+        );
+        ctx.strokeStyle = '#a2e6ff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x - 6, p.y - 6, 12, 12);
+      }
       const local = point(player.position.x, player.position.z);
       const zone = map.zones
         ?.filter((z) => z.level === undefined || z.level === level)
@@ -138,8 +170,10 @@ export function createMinimap() {
       document.getElementById('location-name')!.textContent =
         zone?.name ?? map.name ?? map.id;
       canvas.dataset.zone = zone?.name ?? '';
-      if (snapshot.mode === 'waves') {
-        for (const gate of map.defense?.enemies ?? []) {
+      if (isTeamMode(snapshot.mode)) {
+        for (const gate of snapshot.mode === 'waves'
+          ? (map.defense?.enemies ?? [])
+          : []) {
           const p = point(gate.x, gate.z);
           ctx.fillStyle = '#ef9479';
           ctx.beginPath();
@@ -170,14 +204,38 @@ export function createMinimap() {
           ctx.stroke();
         }
       }
+      if (
+        snapshot.mode === 'mission' &&
+        snapshot.mission &&
+        !['idle', 'complete', 'failed'].includes(snapshot.mission.stage)
+      ) {
+        const target = missionPoint(snapshot.mission);
+        const p = point(target.x, target.z);
+        ctx.strokeStyle = '#ffdc85';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#ffdc85';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('F', p.x - 3, p.y + 4);
+      }
       for (const supply of map.supplies ?? []) {
         const p = point(supply.x, supply.z);
         ctx.fillStyle = '#9cdbaf';
         ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
       }
+      for (const kit of map.medkits ?? []) {
+        const p = point(kit.x, kit.z);
+        ctx.fillStyle = '#174d3f';
+        ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
+        ctx.fillStyle = '#fff9d9';
+        ctx.fillRect(p.x - 4, p.y - 1, 8, 2);
+        ctx.fillRect(p.x - 1, p.y - 4, 2, 8);
+      }
       for (const [id, shot] of shots) {
         if (
-          snapshot.mode === 'waves' &&
+          isTeamMode(snapshot.mode) &&
           snapshot.players.some((p) => p.id === id && (!p.bot || p.ally))
         )
           continue;

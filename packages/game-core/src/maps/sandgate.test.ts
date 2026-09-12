@@ -1,47 +1,38 @@
 import { beforeAll, expect, it } from 'vitest';
 import {
   SANDGATE,
-  CITY,
   createCollisionWorld,
   initializePhysics,
   createGame,
   DEFAULT_CONFIG,
-  EMPTY_BUTTONS,
 } from '../index.js';
 import { createNavigation, visible } from '../bots/brain.js';
 import type { ClientCommand } from '@fps/protocol';
 beforeAll(initializePhysics);
-it('has safe spawns and connected routes through long, middle and tunnels', () => {
+
+it('has safe spawns and connected market, courtyard and gallery destinations', () => {
   const world = createCollisionWorld(SANDGATE);
   try {
     for (const point of [
       ...SANDGATE.spawns,
       ...SANDGATE.defense!.players,
       ...SANDGATE.defense!.enemies,
+      ...SANDGATE.tacticalPositions!.map((p) => p.position),
     ])
       expect(world.canOccupy(point, 1.8), JSON.stringify(point)).toBe(true);
-    const navigation = createNavigation(SANDGATE, world);
-    const start = { x: 0, y: 0.03, z: 18 };
-    for (const end of SANDGATE.defense!.enemies)
-      expect(
-        navigation.path(start, end).length,
-        JSON.stringify(end),
-      ).toBeGreaterThan(3);
-    for (const point of [
-      { x: 21, y: 0.03, z: 0 },
-      { x: -20, y: 0.03, z: 0 },
-      { x: 0, y: 0.03, z: -7 },
-      { x: 6, y: 0.83, z: 0 },
-      { x: 6, y: 0.83, z: -7 },
-    ])
-      expect(world.canOccupy(point, 1.8), JSON.stringify(point)).toBe(true);
-    expect(
-      visible(world, { x: 0, y: 1.65, z: 18 }, { x: 0, y: 1.65, z: -18 }),
-    ).toBe(false);
+    const nav = createNavigation(SANDGATE, world);
+    for (const start of SANDGATE.defense!.enemies)
+      for (const end of SANDGATE.tacticalPositions!)
+        expect(nav.plan(start, end.position), end.id).toBeDefined();
+    expect(SANDGATE.blocks.length).toBeLessThan(110);
+    expect(new Set(SANDGATE.blocks.map((b) => b.id)).size).toBe(
+      SANDGATE.blocks.length,
+    );
   } finally {
     world.dispose();
   }
 });
+
 it('runs enemies through the desert routes and resets to the training map for a challenge', () => {
   const game = createGame(
     {
@@ -70,105 +61,59 @@ it('runs enemies through the desert routes and resets to the training map for a 
     game.dispose();
   }
 });
-it('climbs the new western stair and can step onto the Bastion roof', () => {
-  const game = createGame(
-    DEFAULT_CONFIG,
-    {
-      ...CITY,
-      spawns: [{ x: -11.5, y: 0.03, z: -8 }, ...CITY.spawns.slice(1)],
-    },
-    0,
-  );
-  try {
-    game.enqueue({ type: 'join', playerId: 'host', nickname: 'Host' });
-    game.step(1 / 60);
-    for (let i = 0; i < 250; i++) {
-      game.enqueue({
-        type: 'playerCommand',
-        playerId: 'host',
-        command: {
-          type: 'input',
-          seq: i + 1,
-          yaw: Math.PI,
-          pitch: 0,
-          buttons: { ...EMPTY_BUTTONS, forward: true },
-        },
-      });
-      game.step(1 / 60);
-    }
-    expect(game.snapshot().players[0]!.position.y).toBeGreaterThan(4.7);
-    for (let i = 0; i < 35; i++) {
-      game.enqueue({
-        type: 'playerCommand',
-        playerId: 'host',
-        command: {
-          type: 'input',
-          seq: 251 + i,
-          yaw: -Math.PI / 2,
-          pitch: 0,
-          buttons: { ...EMPTY_BUTTONS, forward: true },
-        },
-      });
-      game.step(1 / 60);
-    }
-    expect(game.snapshot().players[0]!.position.x).toBeGreaterThan(-9);
-    expect(game.snapshot().players[0]!.position.y).toBeGreaterThan(4.7);
-  } finally {
-    game.dispose();
-  }
-});
 
-it('connects expanded rear streets and both approaches to the lookout terraces', () => {
+it('keeps the market side exits and lower arcade open without crouching', () => {
   const world = createCollisionWorld(SANDGATE);
   try {
-    const navigation = createNavigation(SANDGATE, world);
-    for (const side of [-1, 1]) {
-      const terrace = { x: side * 30.8, y: 1.23, z: -17 };
-      expect(world.canOccupy(terrace, 1.8)).toBe(true);
-      for (const start of [
-        { x: side * 30.8, y: 0.03, z: -9 },
-        { x: side * 30.8, y: 0.03, z: -25 },
-      ]) {
-        const path = navigation.path(start, terrace);
-        expect(path.length).toBeGreaterThan(1);
-        expect(path.at(-1)!.y).toBeGreaterThan(1);
-      }
-    }
-    expect(
-      navigation.path({ x: -29, y: 0.03, z: -25 }, { x: 29, y: 0.03, z: -25 })
-        .length,
-    ).toBeGreaterThan(20);
+    for (const [start, finish] of [
+      [
+        { x: 15, y: 1.7, z: 12 },
+        { x: 15, y: 1.7, z: -12 },
+      ],
+      [
+        { x: -14, y: 1.7, z: 6 },
+        { x: -9, y: 1.7, z: 6 },
+      ],
+      [
+        { x: -14, y: 1.7, z: -1.5 },
+        { x: -9, y: 1.7, z: -1.5 },
+      ],
+      [
+        { x: -10, y: 1.7, z: -16 },
+        { x: -10, y: 1.7, z: -12 },
+      ],
+    ])
+      expect(visible(world, start!, finish!)).toBe(true);
+    for (let z = -12; z <= 12; z++)
+      expect(world.canOccupy({ x: 15, y: 0.03, z }, 1.8)).toBe(true);
+    // Facades join the boundaries: no empty full-perimeter ring.
+    expect(world.canOccupy({ x: -30, y: 0.03, z: -3 }, 1.8)).toBe(false);
+    expect(world.canOccupy({ x: 30, y: 0.03, z: 3 }, 1.8)).toBe(false);
   } finally {
     world.dispose();
   }
 });
 
-it('breaks the tunnel sightline and limits each lookout to its own wave entrance', () => {
+it('breaks the main sightline and prevents one balcony from seeing every wave entrance', () => {
   const world = createCollisionWorld(SANDGATE);
   try {
-    const nav = createNavigation(SANDGATE, world);
     expect(
-      visible(world, { x: -20, y: 1.65, z: 10 }, { x: -20, y: 1.65, z: -21 }),
+      visible(world, { x: 0, y: 1.65, z: 18 }, { x: 0, y: 1.65, z: -20 }),
     ).toBe(false);
-    for (const side of [-1, 1]) {
-      const eye = { x: side * 30.8, y: 2.88, z: -17 };
-      const visibleGates = SANDGATE.defense!.enemies.filter((gate) =>
-        visible(world, eye, { ...gate, y: gate.y + 1.65 }),
-      );
-      expect(visibleGates).toHaveLength(1);
-      expect(Math.sign(visibleGates[0]!.x)).toBe(side);
+    expect(
+      visible(world, { x: -19, y: 1.65, z: 10 }, { x: -19, y: 1.65, z: -10 }),
+    ).toBe(false);
+    for (const p of SANDGATE.tacticalPositions!.filter(
+      (p) => p.role === 'overwatch',
+    )) {
+      const eye = { ...p.position, y: p.position.y + 1.65 };
+      expect(
+        SANDGATE.defense!.enemies.filter((g) =>
+          visible(world, eye, { ...g, y: g.y + 1.65 }),
+        ).length,
+        p.id,
+      ).toBeLessThanOrEqual(2);
     }
-    for (const gate of SANDGATE.defense!.enemies)
-      for (const point of SANDGATE.tacticalPositions!)
-        expect(nav.plan(gate, point.position), point.id).toBeDefined();
-    // The old collision with the supply box at x=16,z=-23 is gone.
-    const movement = world.move(
-      { x: 17, y: 0.04, z: -23.2 },
-      1.8,
-      { x: -2, y: -0.04, z: 0 },
-      true,
-    );
-    expect(movement.movement.x).toBeLessThan(-1.9);
   } finally {
     world.dispose();
   }

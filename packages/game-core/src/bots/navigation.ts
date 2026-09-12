@@ -27,8 +27,46 @@ export function visible(world: CollisionWorld, from: Vec3, to: Vec3) {
     length - 0.02
   );
 }
-/** A small static walk graph. Paths are bounded by map size and shared by all bots. */
-export function createNavigation(map: MapDefinition, world: CollisionWorld) {
+export interface Navigation {
+  positions: readonly TacticalPosition[];
+  defenseCenter: Vec3 | undefined;
+  plan(from: Vec3, to: Vec3, avoid?: Vec3): NavigationRoute | undefined;
+  patrol(index: number): Vec3;
+  supply(from: Vec3, avoid?: Vec3): Vec3 | undefined;
+  path(from: Vec3, to: Vec3): Vec3[];
+}
+
+/** A bounded, deterministic slice per server tick; partial graphs never escape. */
+export function createNavigationTask(
+  map: MapDefinition,
+  world: CollisionWorld,
+) {
+  const build = buildNavigation(map, world);
+  let navigation: Navigation | undefined;
+  return {
+    advance(budget = 64): Navigation | undefined {
+      for (let i = 0; i < budget && !navigation; i++) {
+        const next = build.next();
+        if (next.done) navigation = next.value;
+      }
+      return navigation;
+    },
+  };
+}
+/** Synchronous API for offline tools and tests. Live rooms use the sliced task. */
+export function createNavigation(
+  map: MapDefinition,
+  world: CollisionWorld,
+): Navigation {
+  const build = buildNavigation(map, world);
+  let next = build.next();
+  while (!next.done) next = build.next();
+  return next.value;
+}
+function* buildNavigation(
+  map: MapDefinition,
+  world: CollisionWorld,
+): Generator<void, Navigation, void> {
   const floor = map.blocks.find((b) => b.id === 'floor') ?? map.blocks[0]!;
   const nodes: Vec3[] = [];
   const grid = new Map<string, number[]>();
@@ -79,8 +117,11 @@ export function createNavigation(map: MapDefinition, world: CollisionWorld) {
           nodes.push(point);
         }
       }
+      yield;
     }
-  const neighbors = nodes.map((point, index) => {
+  const neighbors: number[][] = [];
+  for (let index = 0; index < nodes.length; index++) {
+    const point = nodes[index]!;
     const [x, z] = keys[index]!;
     const out: number[] = [];
     for (const [dx, dz] of [
@@ -116,8 +157,9 @@ export function createNavigation(map: MapDefinition, world: CollisionWorld) {
           out.push(next);
       }
     }
-    return out;
-  });
+    neighbors.push(out);
+    yield;
+  }
   // Connect endpoints only through a clear corridor. A nearby node behind a wall
   // is not a valid attachment to the graph.
   const connects = (from: Vec3, to: Vec3) => {

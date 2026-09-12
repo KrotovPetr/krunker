@@ -1,0 +1,126 @@
+#join-form .entry-mission {
+  background: #264b50;
+  color: #fff2cd;
+  border: 1px solid #d6ad69;
+}
+.entry-mission .entry-action-note {
+  color: #d7e5df;
+}
+#mission-hud {
+  position: absolute;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, 45vw);
+  padding: 14px 18px;
+  border: 1px solid #b8955c;
+  border-radius: 6px;
+  background: #102b31ed;
+  color: #f7efd9;
+  text-align: center;
+}
+#mission-hud strong,
+#mission-hud span {
+  display: block;
+}
+.mission-eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #dab777;
+  margin-bottom: 7px;
+}
+#mission-title {
+  font-size: 17px;
+}
+#mission-task {
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 7px;
+}
+#mission-status {
+  font-size: 10px;
+  color: #cbdad4;
+  margin-top: 7px;
+}
+#mission-progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin-top: 10px;
+  appearance: none;
+  border: 0;
+  background: #33494c;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#mission-progress::-webkit-progress-bar {
+  background: #33494c;
+}
+#mission-progress::-webkit-progress-value {
+  background: #e1bb74;
+}
+#mission-progress::-moz-progress-bar {
+  background: #e1bb74;
+}
+#mission-radio {
+  position: absolute;
+  bottom: 190px;
+  left: 24px;
+  width: min(360px, 32vw);
+  padding: 12px 16px;
+  border-left: 3px solid #d6ad69;
+  background: #102b31e8;
+  color: #f7efd9;
+}
+#mission-radio > span {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #d6ad69;
+}
+#mission-radio p {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+#mission-cinema {
+  position: absolute;
+  inset: 0;
+  border-top: 32px solid #090f13;
+  border-bottom: 52px solid #090f13;
+  pointer-events: none;
+}
+.mission-finale #mission-hud {
+  z-index: 2;
+  top: 55px;
+}
+.mission-finale #crosshair,
+.mission-finale #squad-command-hud,
+.mission-finale #minimap,
+.mission-finale .combat-readout,
+.mission-finale .ammo-readout,
+.mission-finale #kill-feed,
+.mission-finale #location-name {
+  visibility: hidden;
+}
+.mission-finale #mission-radio {
+  width: min(560px, 75vw);
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 65px;
+  text-align: center;
+}
+#restart-mission {
+  margin-top: 12px;
+  pointer-events: auto;
+}
+@media (max-width: 850px) {
+  #mission-hud {
+    left: 18px;
+    transform: none;
+    width: min(390px, 50vw);
+    top: 62px;
+  }
+  #mission-radio {
+    width: 40vw;
+  }
+}

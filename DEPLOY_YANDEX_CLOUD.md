@@ -4,7 +4,7 @@
 
 Схема: браузер → HTTPS / WSS → Caddy → статические файлы клиента или Node.js на `127.0.0.1:2567`. Один процесс игры запускает systemd. База данных, Redis и контейнеры для этого варианта не нужны.
 
-Нужен собственный домен или поддомен. Публичный статический IPv4 VM: `89.169.162.158`. Во всех командах ниже замени `play.example.com` на свой домен. Команды предназначены для новой Ubuntu VM. Выполняй блоки по порядку; при ошибке остановись и исправь её перед следующим шагом.
+Основной вариант ниже использует домен или поддомен с HTTPS. Для первого запуска без домена используй вариант HTTP по IP в разделе 6а, пропусти настройку DNS и укажи `VITE_SERVER_URL=http://89.169.162.158` при сборке. Публичный статический IPv4 VM: `89.169.162.158`. В варианте с доменом замени `play.example.com` на свой домен. Команды предназначены для новой Ubuntu VM. Выполняй блоки по порядку; при ошибке остановись и исправь её перед следующим шагом.
 
 ## 1. Создай VM
 
@@ -205,6 +205,59 @@ sudo systemctl reload caddy
 `/matchmake/*` обслуживает создание и вход в комнаты. WebSocket идёт по отдельному адресу `/<processId>/<roomId>`, поэтому для него есть правило по заголовку Upgrade. Нельзя проксировать только `/matchmake/*`, иначе меню загрузится, но бой не подключится. Caddy сам поддерживает WebSocket upgrade. [Reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy), [правила handle](https://caddyserver.com/docs/caddyfile/directives/handle).
 
 Caddy получает и продлевает сертификат автоматически. Отдельный Certbot или сертификат из Yandex Certificate Manager для этой схемы не требуется. На VM должны быть свободны порты 80/443; если включён UFW, разреши в нём SSH, TCP 80 и TCP 443. [Автоматический HTTPS](https://caddyserver.com/docs/automatic-https).
+
+## 6а. Если домена нет: первый запуск по HTTP на статичном IP
+
+После установки Caddy можно использовать `http://89.169.162.158`. Это соединение без шифрования; браузер покажет «Не защищено». Префикс `http://` явно отключает автоматический HTTPS для этого адреса. [Схема адреса Caddy](https://caddyserver.com/docs/caddyfile/concepts#addresses).
+
+Вместо конфигурации с доменом выполни на VM:
+
+```bash
+sudo tee /etc/caddy/Caddyfile > /dev/null <<'EOF'
+http://89.169.162.158 {
+    encode zstd gzip
+
+    @game path /health /matchmake /matchmake/*
+    handle @game {
+        reverse_proxy 127.0.0.1:2567
+    }
+
+    @socket header Upgrade websocket
+    handle @socket {
+        reverse_proxy 127.0.0.1:2567
+    }
+
+    handle {
+        root * /var/www/krunker
+        header Cache-Control "no-cache"
+        file_server
+    }
+}
+EOF
+sudo caddy fmt --overwrite /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl enable --now caddy
+sudo systemctl reload caddy
+```
+
+Если клиент уже собран с адресом `play.example.com`, пересобери только его от пользователя, которому принадлежит `/opt/krunker`:
+
+```bash
+(
+  set -euo pipefail
+  cd /opt/krunker
+  printf '%s\n' 'VITE_SERVER_URL=http://89.169.162.158' > apps/client/.env.production
+  pnpm --filter @fps/client build
+  sudo rsync -a --delete apps/client/dist/ /var/www/krunker/
+  sudo chmod -R a+rX /var/www/krunker
+)
+```
+
+Если репозиторий уже передан пользователю `github-deploy`, редактирование `.env.production` и сборку выполняй от него через `sudo -H -u github-deploy`. Сервер Node перезапускать для смены клиентского URL не требуется.
+
+В группе безопасности открой входящий TCP 80. В браузере открывай именно `http://89.169.162.158`, а для проверки используй `curl -fsS http://89.169.162.158/health`. В разделе 7 замени доменные HTTPS-адреса на этот HTTP-адрес. Игровое соединение использует WS через тот же порт 80; порт 2567 остаётся закрытым снаружи. Кнопка копирования ссылки может предложить скопировать выделенный текст вручную.
+
+Когда появится домен, можно вернуться к конфигурации раздела 6 и пересобрать клиент с HTTPS-адресом. Секрет `DEPLOY_HOST` остаётся равен IP VM независимо от адреса сайта.
 
 ## 7. Проверь запуск
 

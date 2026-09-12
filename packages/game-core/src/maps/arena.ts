@@ -7,13 +7,21 @@ export interface MapBlock {
   size: Vec3;
   yaw: number;
   color: number;
-  surface?: 'plaster' | 'stone' | 'asphalt' | 'paving' | 'metal' | 'roof';
+  surface?:
+    'plaster' | 'stone' | 'asphalt' | 'paving' | 'metal' | 'roof' | 'concrete';
 }
 export interface MapDefinition {
+  control?: {
+    position: Vec3;
+    radius: number;
+    allies: readonly Vec3[];
+    enemies: readonly Vec3[];
+  };
   id: string;
   name?: string;
   description?: string;
   supplies?: ReadonlyArray<Vec3>;
+  medkits?: ReadonlyArray<Vec3>;
   navigationHeights?: readonly number[];
   upperLevel?: number;
   tacticalPositions?: ReadonlyArray<{
@@ -44,6 +52,20 @@ export interface MapDefinition {
   practice?: {
     spawns: ReadonlyArray<Vec3>;
     targets: ReadonlyArray<{ id: string; position: Vec3 }>;
+  };
+}
+
+/** Same right-handed Y rotation as Three.js and Rapier. */
+export function mapLocalPoint(
+  block: Pick<MapBlock, 'position' | 'yaw'>,
+  x: number,
+  y: number,
+  z: number,
+): Vec3 {
+  return {
+    x: block.position.x + Math.cos(block.yaw) * x + Math.sin(block.yaw) * z,
+    y: block.position.y + y,
+    z: block.position.z - Math.sin(block.yaw) * x + Math.cos(block.yaw) * z,
   };
 }
 
@@ -81,19 +103,32 @@ export function withSupplyCrates(map: MapDefinition): MapDefinition {
         color: 0x3c7162,
         surface: 'metal',
       })),
+      ...(map.medkits ?? []).map((p, i): MapBlock => ({
+        id: 'medkit-' + i,
+        shape: 'box',
+        yaw: 0,
+        position: { x: p.x, y: p.y - 0.4, z: p.z },
+        size: { x: 0.9, y: 0.4, z: 0.65 },
+        color: 0xe5eadc,
+        surface: 'metal',
+      })),
     ],
   };
 }
 export const ARENA: MapDefinition = withSupplyCrates({
   id: 'switchyard',
   name: 'Switchyard',
+  navigationHeights: [2.4, 4.9],
   supplies: [
     { x: -3, y: 0.6, z: 9 },
     { x: -23, y: 0.6, z: -5 },
+  ],
+  medkits: [
     { x: 22, y: 0.6, z: 5 },
+    { x: -8, y: 3.6, z: 19 },
   ],
   description:
-    'Литейный цех, охладительная станция и низкий переход. Пандусы связывают два уровня; внешние проходы позволяют обойти центр.',
+    'Литейная и охладительная станция на открытых опорах. Под обеими платформами проходят сквозные маршруты в полный рост. Пандусы и ступени сохраняют доступ наверх; центральный низкий переход требует присесть.',
   zones: [
     { name: 'ЛИТЕЙНАЯ', x: 0, z: -17, radius: 13 },
     { name: 'ОХЛАЖДЕНИЕ', x: 0, z: 17, radius: 13 },
@@ -115,6 +150,18 @@ export const ARENA: MapDefinition = withSupplyCrates({
     ],
   },
   landmarks: [
+    {
+      text: 'A / LOWER WALK',
+      position: { x: 5, y: 2.9, z: -12.98 },
+      yaw: 0,
+      color: 0xe3a559,
+    },
+    {
+      text: 'B / LOWER WALK',
+      position: { x: -5, y: 2.9, z: 12.98 },
+      yaw: Math.PI,
+      color: 0x62c9c0,
+    },
     {
       text: 'A / FOUNDRY',
       position: { x: 0, y: 5.4, z: -20.9 },
@@ -158,8 +205,24 @@ export const ARENA: MapDefinition = withSupplyCrates({
     box('east-wall', 28.5, 3, 0, 1, 6, 50, 0x9eafa8),
     box('north-wall', 0, 3, -24.5, 56, 6, 1, 0x9eafa8),
     box('south-wall', 0, 3, 24.5, 56, 6, 1, 0x9eafa8),
-    box('north-deck', 0, 1.5, -17, 24, 3, 8, 0xc3926d),
-    box('south-deck', 0, 1.5, 17, 24, 3, 8, 0x729c9e),
+    box('north-deck', 0, 2.8, -17, 24, 0.4, 8, 0xc3926d),
+    box('south-deck', 0, 2.8, 17, 24, 0.4, 8, 0x729c9e),
+    ...[-1, 1].flatMap((side) =>
+      [-10.5, 0, 10.5].flatMap((x) =>
+        [-3.2, 3.2].map((dz) =>
+          box(
+            'deck-support-' + side + '-' + x + '-' + dz,
+            x,
+            1.3,
+            side * 17 + dz,
+            0.8,
+            2.6,
+            0.8,
+            side < 0 ? 0xa27451 : 0x537e80,
+          ),
+        ),
+      ),
+    ),
     { ...box('north-ramp', -18, 1.5, -17, 12, 3, 6, 0xc3926d), shape: 'ramp' },
     {
       ...box('south-ramp', 18, 1.5, 17, 12, 3, 6, 0x729c9e),

@@ -5,6 +5,7 @@ import type {
   PlayerSnapshot,
   WeaponId,
   ChallengeSnapshot,
+  MissionStage,
 } from './index.js';
 
 export const ChallengeState = schema(
@@ -29,6 +30,7 @@ export const ChallengeState = schema(
 
 export const PlayerState = schema(
   {
+    colorIndex: t.uint8().default(0),
     id: t.string().default(''),
     bot: t.boolean().default(false),
     ally: t.boolean().default(false),
@@ -36,6 +38,9 @@ export const PlayerState = schema(
     secondaryReserve: t.uint16().default(0),
     bloom: t.float32().default(0),
     supplyCooldown: t.float32().default(0),
+    mineCooldown: t.float32().default(0),
+    grenades: t.uint8().default(1),
+    healthCooldown: t.float32().default(0),
     challenge: t.ref(ChallengeState),
     nickname: t.string().default(''),
     x: t.float32().default(0),
@@ -59,7 +64,7 @@ export const PlayerState = schema(
     connected: t.boolean().default(false),
     health: t.float32().default(0),
     maxHealth: t.float32().default(0),
-    slot: t.string<'primary' | 'secondary'>().default('primary'),
+    slot: t.string<'primary' | 'secondary' | 'knife'>().default('primary'),
     secondaryAmmo: t.uint8().default(12),
     landingRemaining: t.float32().default(0),
     aimProgress: t.float32().default(0),
@@ -92,9 +97,79 @@ export const WaveState = schema(
   },
   'WaveState',
 );
+export const MineState = schema(
+  {
+    id: t.string().default(''),
+    ownerId: t.string().default(''),
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    z: t.float32().default(0),
+    armed: t.boolean().default(false),
+  },
+  'MineState',
+);
+export const GrenadeState = schema(
+  {
+    id: t.string().default(''),
+    ownerId: t.string().default(''),
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    z: t.float32().default(0),
+    remaining: t.float32().default(0),
+  },
+  'GrenadeState',
+);
+export const ControlState = schema(
+  {
+    progress: t.float32().default(0),
+    owner: t.string<'neutral' | 'allies' | 'enemies'>().default('neutral'),
+    contested: t.boolean().default(false),
+    allies: t.uint8().default(0),
+    enemies: t.uint8().default(0),
+    allyScore: t.float32().default(0),
+    enemyScore: t.float32().default(0),
+  },
+  'ControlState',
+);
+export const SquadOrderState = schema(
+  {
+    kind: t.string<'auto' | 'follow' | 'hold' | 'attack'>().default('auto'),
+    commanderId: t.string().default(''),
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    z: t.float32().default(0),
+    remaining: t.float32().default(0),
+    serial: t.uint32().default(0),
+  },
+  'SquadOrderState',
+);
+export const MissionState = schema(
+  {
+    stage: t.string<MissionStage>().default('idle'),
+    checkpoint: t.string<MissionStage>().default('dispatch'),
+    progress: t.float32().default(0),
+    remaining: t.float32().default(0),
+    elapsed: t.float32().default(0),
+    carrierId: t.string().default(''),
+    cargoX: t.float32().default(0),
+    cargoY: t.float32().default(0),
+    cargoZ: t.float32().default(0),
+    queued: t.uint16().default(0),
+    alive: t.uint8().default(0),
+    runId: t.uint32().default(0),
+    serial: t.uint32().default(0),
+    attempts: t.uint16().default(0),
+    boarded: t.uint8().default(0),
+    required: t.uint8().default(0),
+  },
+  'MissionState',
+);
 export const ArenaState = schema(
   {
     wave: t.ref(WaveState),
+    mission: t.ref(MissionState),
+    control: t.ref(ControlState),
+    squadOrder: t.ref(SquadOrderState),
     mapId: t.string().default('switchyard'),
     mode: t.string<GameSnapshot['mode']>().default('arena'),
     hostId: t.string().default(''),
@@ -107,6 +182,8 @@ export const ArenaState = schema(
     remaining: t.float32().default(0),
     winner: t.string().default(''),
     players: t.map(PlayerState),
+    mines: t.map(MineState),
+    grenades: t.map(GrenadeState),
   },
   'ArenaState',
 );
@@ -116,9 +193,13 @@ export function toSnapshot(state: ArenaState): GameSnapshot {
   const players: PlayerSnapshot[] = [];
   state.players.forEach((player) =>
     players.push({
+      colorIndex: player.colorIndex,
       id: player.id,
       bot: player.bot,
       supplyCooldown: player.supplyCooldown,
+      mineCooldown: player.mineCooldown,
+      grenades: player.grenades,
+      healthCooldown: player.healthCooldown,
       bloom: player.bloom,
       secondaryReserve: player.secondaryReserve,
       reserveAmmo: player.reserveAmmo,
@@ -175,6 +256,58 @@ export function toSnapshot(state: ArenaState): GameSnapshot {
     }),
   );
   return {
+    control: {
+      progress: state.control.progress,
+      owner: state.control.owner,
+      contested: state.control.contested,
+      allies: state.control.allies,
+      enemies: state.control.enemies,
+      allyScore: state.control.allyScore,
+      enemyScore: state.control.enemyScore,
+    },
+    mission: {
+      stage: state.mission.stage,
+      checkpoint: state.mission.checkpoint,
+      progress: state.mission.progress,
+      remaining: state.mission.remaining,
+      elapsed: state.mission.elapsed,
+      carrierId: state.mission.carrierId,
+      cargo: {
+        x: state.mission.cargoX,
+        y: state.mission.cargoY,
+        z: state.mission.cargoZ,
+      },
+      queued: state.mission.queued,
+      alive: state.mission.alive,
+      runId: state.mission.runId,
+      serial: state.mission.serial,
+      attempts: state.mission.attempts,
+      boarded: state.mission.boarded,
+      required: state.mission.required,
+    },
+    squadOrder: {
+      kind: state.squadOrder.kind,
+      commanderId: state.squadOrder.commanderId,
+      position: {
+        x: state.squadOrder.x,
+        y: state.squadOrder.y,
+        z: state.squadOrder.z,
+      },
+      remaining: state.squadOrder.remaining,
+      serial: state.squadOrder.serial,
+    },
+    grenades: [...state.grenades.values()].map((g) => ({
+      id: g.id,
+      ownerId: g.ownerId,
+      position: { x: g.x, y: g.y, z: g.z },
+      remaining: g.remaining,
+    })),
+    mines: [...state.mines.values()].map((mine) => ({
+      id: mine.id,
+      ownerId: mine.ownerId,
+      armed: mine.armed,
+      position: { x: mine.x, y: mine.y, z: mine.z },
+    })),
     wave: {
       number: state.wave.number,
       status: state.wave.status,

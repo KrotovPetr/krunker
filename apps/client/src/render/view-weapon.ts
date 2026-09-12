@@ -1,14 +1,16 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { FIREARMS, equippedWeapon } from '@fps/game-core';
 import type { PlayerSnapshot } from '@fps/protocol';
 
 export function createViewWeapon(camera: THREE.Camera) {
   const root = new THREE.Group();
+  root.scale.setScalar(0.86);
   camera.add(root);
   const metal = new THREE.MeshStandardMaterial({
-    color: 0x59717b,
-    metalness: 0.25,
-    roughness: 0.6,
+    color: 0x556268,
+    metalness: 0.45,
+    roughness: 0.48,
     emissive: 0x15252a,
     emissiveIntensity: 0.4,
   });
@@ -19,12 +21,18 @@ export function createViewWeapon(camera: THREE.Camera) {
     emissiveIntensity: 0.25,
   });
   const grip = new THREE.MeshStandardMaterial({
-    color: 0xae7757,
+    color: 0x414b48,
     roughness: 0.9,
   });
   const box = (size: number[], position: number[], material = metal) => {
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(size[0], size[1], size[2]),
+      new RoundedBoxGeometry(
+        size[0],
+        size[1],
+        size[2],
+        1,
+        Math.min(...size) * 0.14,
+      ),
       material,
     );
     mesh.position.set(position[0]!, position[1]!, position[2]!);
@@ -32,11 +40,23 @@ export function createViewWeapon(camera: THREE.Camera) {
     return mesh;
   };
   const receiver = box([0.12, 0.13, 0.46], [0, 0, -0.16]);
-  const barrel = box([0.045, 0.045, 0.42], [0, 0.02, -0.57], dark);
+  const barrelGeometry = new THREE.CylinderGeometry(0.021, 0.025, 0.42, 10);
+  barrelGeometry.rotateX(Math.PI / 2);
+  const barrel = new THREE.Mesh(barrelGeometry, dark);
+  barrel.position.set(0, 0.02, -0.57);
+  root.add(barrel);
   const stock = box([0.1, 0.12, 0.23], [0, -0.02, 0.13], grip);
   const magazine = box([0.065, 0.19, 0.1], [0, -0.14, -0.12], dark);
   const bolt = box([0.02, 0.035, 0.1], [0.07, 0.02, -0.14]);
-  const hand = box([0.085, 0.11, 0.14], [0.035, -0.11, 0.04], grip);
+  const hand = box([0.075, 0.105, 0.11], [0.035, -0.11, 0.04], dark);
+  magazine.rotation.x = -0.13;
+  const handguard = box([0.095, 0.09, 0.23], [0, -0.005, -0.4], grip);
+  const receiverTop = box([0.085, 0.025, 0.36], [0, 0.072, -0.16], dark);
+  const triggerGuard = box([0.035, 0.025, 0.13], [0, -0.1, 0.01], dark);
+  const muzzle = box([0.058, 0.056, 0.065], [0, 0.02, -0.76], metal);
+  const rearSight = [-1, 1].map((side) =>
+    box([0.014, 0.035, 0.024], [side * 0.032, 0.102, -0.015], dark),
+  );
   const frontSight = box([0.01, 0.055, 0.015], [0, 0.06, -0.56], dark);
   const optic = new THREE.Group();
   root.add(optic);
@@ -61,6 +81,9 @@ export function createViewWeapon(camera: THREE.Camera) {
       roughness: 0.18,
     }),
   );
+  blade.name = 'knife-blade';
+  const knifeGrip = box([0.052, 0.065, 0.17], [0, 0, 0.035], dark);
+  const knifeGuard = box([0.1, 0.025, 0.035], [0, 0, -0.065], metal);
   const cylinder = new THREE.Mesh(
     new THREE.CylinderGeometry(0.085, 0.085, 0.12, 8),
     new THREE.MeshStandardMaterial({
@@ -90,9 +113,13 @@ export function createViewWeapon(camera: THREE.Camera) {
     walkPhase = 0,
     switchRemaining = 0,
     lastWeapon = '';
+  let throwTime = 0;
   return {
+    thrown() {
+      throwTime = 0.35;
+    },
     shot(knife: boolean) {
-      kick = knife ? 0.23 : 0.1;
+      kick = knife ? -0.12 : 0.1;
       flashTime = knife ? 0 : 0.05;
       knifeTime = knife ? 0.28 : 0;
     },
@@ -106,18 +133,24 @@ export function createViewWeapon(camera: THREE.Camera) {
         root.visible = false;
         return 75;
       }
-      const id = equippedWeapon(player),
+      const selected = equippedWeapon(player),
+        knifeEquipped = selected === 'knife',
+        id = knifeEquipped ? player.weapon : selected,
         config = FIREARMS[id];
-      if (id !== lastWeapon) {
+      root.userData.equipped = selected;
+      const gunVisible = !knifeEquipped && knifeTime === 0;
+      metal.color.setHex(id === 'sapper' ? 0x807958 : 0x556268);
+      if (selected !== lastWeapon) {
         switchRemaining = 0.22;
-        lastWeapon = id;
+        lastWeapon = selected;
       }
       kick *= Math.exp(-18 * dt);
       flashTime = Math.max(0, flashTime - dt);
       knifeTime = Math.max(0, knifeTime - dt);
       switchRemaining = Math.max(0, switchRemaining - dt);
+      throwTime = Math.max(0, throwTime - dt);
       const ads =
-        firstPerson && aiming && player.reloadRemaining <= 0
+        !knifeEquipped && firstPerson && aiming && player.reloadRemaining <= 0
           ? player.aimProgress
           : 0;
       const reload =
@@ -138,6 +171,7 @@ export function createViewWeapon(camera: THREE.Camera) {
         -0.24 +
           ads * 0.105 -
           reload * 0.2 -
+          Math.sin((throwTime / 0.35) * Math.PI) * 0.22 -
           switchRemaining * 0.5 +
           Math.cos(walkPhase * 2) * bob * 0.008,
         -0.36 + kick,
@@ -150,17 +184,26 @@ export function createViewWeapon(camera: THREE.Camera) {
       root.visible =
         firstPerson && player.health > 0 && !(id === 'sniper' && ads > 0.8);
       for (const mesh of [receiver, barrel, stock, magazine, bolt, frontSight])
-        mesh.visible = knifeTime === 0;
+        mesh.visible = gunVisible;
       hand.visible = true;
-      blade.visible = knifeTime > 0;
-      optic.visible = id === 'sniper' && knifeTime === 0;
+      blade.visible = knifeEquipped || knifeTime > 0;
+      knifeGrip.visible = knifeGuard.visible = blade.visible;
+      handguard.visible = gunVisible && id !== 'pistol' && id !== 'revolver';
+      receiverTop.visible = triggerGuard.visible = gunVisible;
+      muzzle.visible = gunVisible;
+      for (const sight of rearSight)
+        sight.visible = gunVisible && id !== 'sniper';
+      optic.visible = id === 'sniper' && gunVisible;
       const handgun = id === 'pistol' || id === 'revolver';
       const machineGun = id === 'lmg';
-      carryHandle.visible = machineGun && knifeTime === 0;
-      for (const leg of bipod) leg.visible = machineGun && knifeTime === 0;
-      cylinder.visible = id === 'revolver' && knifeTime === 0;
+      receiverTop.scale.z = handgun ? 0.45 : id === 'smg' ? 0.72 : 1;
+      handguard.scale.z = id === 'smg' ? 0.65 : machineGun ? 1.2 : 1;
+      handguard.position.z = id === 'smg' ? -0.34 : -0.4;
+      carryHandle.visible = machineGun && gunVisible;
+      for (const leg of bipod) leg.visible = machineGun && gunVisible;
+      cylinder.visible = id === 'revolver' && gunVisible;
       cylinder.rotation.z = reload * Math.PI * 4;
-      rail.visible = id === 'smg' && knifeTime === 0;
+      rail.visible = id === 'smg' && gunVisible;
       receiver.scale.set(
         machineGun ? 1.45 : id === 'shotgun' ? 1.3 : 1,
         machineGun ? 1.2 : 1,
@@ -191,7 +234,8 @@ export function createViewWeapon(camera: THREE.Camera) {
       magazine.position.y = -0.14 - reload * 0.2;
       bolt.position.z = -0.14 + kick * 0.6;
       flash.position.set(0, 0.02, barrel.position.z - 0.21 * barrel.scale.z);
-      flash.visible = flashTime > 0;
+      muzzle.position.copy(flash.position);
+      flash.visible = flashTime > 0 && gunVisible;
       flash.rotation.z += dt * 30;
       return 75 + ((id === 'sniper' ? 28 : 55) - 75) * ads;
     },

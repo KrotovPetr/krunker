@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PlayerSnapshot } from '@fps/protocol';
+import { playerColor } from './player-colors.js';
 
 /** Visual rig stays within the body/head hitboxes; weapons are cosmetic. */
 export function createCharacter(bot: boolean) {
@@ -23,6 +24,10 @@ export function createCharacter(bot: boolean) {
     color: bot ? 0xe8b86e : 0x86d2df,
     metalness: 0.3,
     roughness: 0.2,
+  });
+  const accent = new THREE.MeshStandardMaterial({
+    color: 0x48c6b2,
+    roughness: 0.75,
   });
   const geometries: THREE.BufferGeometry[] = [];
   const box = (
@@ -59,6 +64,8 @@ export function createCharacter(bot: boolean) {
   torso.position.y = 1.1;
   body.add(torso);
   box(body, 0, 1.1, -0.2, 0.34, 0.38, 0.11, armor);
+  box(body, 0, 1.24, -0.265, 0.29, 0.06, 0.025, accent);
+  box(body, 0, 1.15, 0.235, 0.28, 0.12, 0.025, accent);
   box(body, -0.1, 0.99, -0.28, 0.08, 0.16, 0.06, dark);
   box(body, 0.1, 0.99, -0.28, 0.08, 0.16, 0.06, dark);
   const head = new THREE.Group();
@@ -73,6 +80,7 @@ export function createCharacter(bot: boolean) {
     arm.position.set(side * 0.24, 1.3, 0);
     body.add(arm);
     box(arm, 0, -0.19, 0, 0.14, 0.4, 0.16, cloth);
+    box(arm, 0, -0.13, 0, 0.155, 0.08, 0.175, accent);
     box(arm, 0, -0.4, 0, 0.15, 0.12, 0.16, dark);
     return arm;
   });
@@ -82,6 +90,8 @@ export function createCharacter(bot: boolean) {
   const receiver = box(gun, 0, 0, -0.12, 0.1, 0.12, 0.42, dark);
   const barrel = box(gun, 0, 0.02, -0.41, 0.035, 0.035, 0.24, armor);
   const magazine = box(gun, 0, -0.13, -0.1, 0.05, 0.2, 0.08, armor);
+  const knife = box(gun, 0, 0, -0.22, 0.025, 0.055, 0.3, visor);
+  const knifeGrip = box(gun, 0, 0, -0.01, 0.05, 0.065, 0.13, dark);
   const flashGeo = new THREE.OctahedronGeometry(0.085);
   geometries.push(flashGeo);
   const flashMaterial = new THREE.MeshBasicMaterial({ color: 0xffd98c });
@@ -107,6 +117,14 @@ export function createCharacter(bot: boolean) {
     wasAlive = false;
   return {
     root,
+    setAppearance(index: number, friendly: boolean) {
+      const color = playerColor(index, friendly);
+      cloth.color.setHex(color).multiplyScalar(0.7);
+      accent.color.setHex(color);
+      armor.color.setHex(friendly ? 0x293f49 : 0x503b35);
+      visor.color.setHex(friendly ? 0x9edce7 : 0xf0c493);
+      root.userData.memberColor = color;
+    },
     shot() {
       shotRemaining = 0.09;
     },
@@ -149,18 +167,10 @@ export function createCharacter(bot: boolean) {
       head.rotation.x = player.pitch * 0.6;
       gun.rotation.x = player.pitch;
       gun.position.z = -0.23 + shotRemaining * 0.5;
-      const enemy = player.bot && !player.ally;
-      const palette = {
-        rifle: 0xa16549,
-        smg: 0xc19651,
-        sniper: 0x788061,
-        shotgun: 0x955c52,
-        revolver: 0x8c748a,
-        lmg: 0x7e8050,
-      };
-      cloth.color.setHex(enemy ? palette[player.weapon] : 0x507d8a);
-      armor.color.setHex(enemy ? 0x5c4438 : 0x293f49);
-      visor.color.setHex(enemy ? 0xe8b86e : 0x86d2df);
+      const melee = player.slot === 'knife';
+      receiver.visible = barrel.visible = magazine.visible = !melee;
+      knife.visible = knifeGrip.visible = melee;
+      if (melee) gun.position.z = -0.23 - shotRemaining;
       torso.scale.x =
         player.weapon === 'shotgun' ? 1.1 : player.weapon === 'smg' ? 0.9 : 1;
       const short = player.slot === 'secondary' || player.weapon === 'revolver';
@@ -181,7 +191,7 @@ export function createCharacter(bot: boolean) {
               ? 0.4
               : 1;
       flash.position.z = -0.41 - 0.12 * barrel.scale.z;
-      flash.visible = shotRemaining > 0 && !dead;
+      flash.visible = !melee && shotRemaining > 0 && !dead;
       shield.visible = player.protectionRemaining > 0 && !dead;
       shield.rotation.y += dt * 0.7;
       body.rotation.z = dead
@@ -200,6 +210,7 @@ export function createCharacter(bot: boolean) {
         armor,
         dark,
         visor,
+        accent,
         flashMaterial,
         shieldMaterial,
       ])

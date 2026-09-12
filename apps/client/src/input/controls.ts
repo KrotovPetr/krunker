@@ -16,11 +16,13 @@ export function createControls(
   let jumpQueued = false;
   let primary = false,
     shotQueued = false,
-    knifeQueued = false,
+    mineQueued = false,
+    grenadeQueued = false,
     reloadQueued = false,
     aimHeld = false,
     aimToggled = false;
-  let slotQueued: 'primary' | 'secondary' | 'toggle' | undefined;
+  let slotQueued: 'primary' | 'secondary' | 'knife' | 'toggle' | undefined;
+  let orderQueued: 'follow' | 'hold' | 'attack' | undefined;
   try {
     const stored = Number(localStorage.getItem(STORAGE_KEY));
     if (stored >= 0.0005 && stored <= 0.006) sensitivity = stored;
@@ -33,15 +35,21 @@ export function createControls(
     keys.clear();
     jumpQueued = false;
     slotQueued = undefined;
+    orderQueued = undefined;
     primary =
       shotQueued =
-      knifeQueued =
+      mineQueued =
+      grenadeQueued =
       reloadQueued =
       aimHeld =
       aimToggled =
         false;
   };
   const handled = new Set([
+    'KeyF',
+    'KeyZ',
+    'KeyX',
+    'KeyT',
     'KeyW',
     'KeyA',
     'KeyS',
@@ -54,11 +62,14 @@ export function createControls(
     'KeyC',
     'KeyR',
     'KeyV',
+    'KeyG',
+    'KeyB',
     'Tab',
     'KeyQ',
     'KeyE',
     'Digit1',
     'Digit2',
+    'Digit3',
   ]);
   document.addEventListener(
     'keydown',
@@ -69,18 +80,27 @@ export function createControls(
         return;
       }
       if (!handled.has(event.code)) return;
+      if (!event.repeat && event.code === 'KeyZ') orderQueued = 'follow';
+      if (!event.repeat && event.code === 'KeyX') orderQueued = 'hold';
+      if (!event.repeat && event.code === 'KeyT') orderQueued = 'attack';
       event.preventDefault();
       if (event.code === 'Space' && !keys.has('Space')) jumpQueued = true;
       if (!event.repeat && event.code === 'KeyR') reloadQueued = true;
-      if (!event.repeat && event.code === 'KeyV') knifeQueued = true;
+      if (!event.repeat && event.code === 'KeyG') mineQueued = true;
+      if (!event.repeat && event.code === 'KeyB') grenadeQueued = true;
       if (!event.repeat && event.code === 'KeyQ') aimToggled = !aimToggled;
-      if (!event.repeat && ['KeyE', 'Digit1', 'Digit2'].includes(event.code)) {
+      if (
+        !event.repeat &&
+        ['KeyE', 'Digit1', 'Digit2', 'Digit3', 'KeyV'].includes(event.code)
+      ) {
         slotQueued =
           event.code === 'Digit1'
             ? 'primary'
             : event.code === 'Digit2'
               ? 'secondary'
-              : 'toggle';
+              : event.code === 'KeyV' || event.code === 'Digit3'
+                ? 'knife'
+                : 'toggle';
         aimHeld = aimToggled = false;
       }
       keys.add(event.code);
@@ -177,13 +197,16 @@ export function createControls(
     },
     actions() {
       const result = {
+        order: orderQueued,
         primary,
         pressed: shotQueued,
-        knife: knifeQueued,
+        mine: mineQueued,
+        grenade: grenadeQueued,
         reload: reloadQueued,
         slot: slotQueued,
       };
-      shotQueued = knifeQueued = reloadQueued = false;
+      shotQueued = reloadQueued = mineQueued = grenadeQueued = false;
+      orderQueued = undefined;
       slotQueued = undefined;
       return result;
     },
@@ -237,7 +260,15 @@ export function createControls(
           }
         : { ...EMPTY_BUTTONS };
       jumpQueued = false;
-      return { type: 'input', seq, yaw, pitch, buttons, aiming: aiming() };
+      return {
+        type: 'input',
+        seq,
+        yaw,
+        pitch,
+        buttons,
+        aiming: aiming(),
+        interacting: active && keys.has('KeyF'),
+      };
     },
     dispose() {
       release();

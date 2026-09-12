@@ -4,51 +4,138 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#101a1c" />
-    <title>Browser FPS · Комната</title>
+    <title>Browser FPS · Играть</title>
     <link rel="icon" href="data:," />
   </head>
   <body>
     <div id="app">
       <div id="scene" aria-label="Трёхмерная сцена комнаты"></div>
+      <button id="close-map-preview" type="button" hidden>
+        Вернуться в меню · Esc
+      </button>
       <header>
-        <a class="brand" href="/">BROWSER FPS<span>ПРОТОТИП / 05</span></a
+        <a class="brand" href="/"
+          >BROWSER FPS<span>ТАКТИЧЕСКИЙ БОЙ В БРАУЗЕРЕ</span></a
         ><span class="status" id="status" role="status">Не подключён</span>
       </header>
       <main>
         <section class="panel" aria-labelledby="title">
-          <p class="eyebrow">ВЫБЕРИ ПОЗИЦИЮ. ДЕРЖИ ОБОРОНУ.</p>
-          <h1 id="title">Ещё одна<br />волна.</h1>
+          <p class="eyebrow" id="entry-eyebrow">
+            БЕЗ РЕГИСТРАЦИИ · СРАЗУ В ИГРУ
+          </p>
+          <h1 id="title">Собери отряд.<br /><span>Держи оборону.</span></h1>
           <p class="intro">
-            Создай комнату и отправь ссылку друзьям. До восьми игроков, без
-            регистрации.
+            Спаси последний рейс из Bastion, удерживай точку или отбивай волны
+            на плотине. Начни с ботами, друзей пригласи по ссылке из игры.
           </p>
           <form id="join-form">
-            <button id="quick-play" type="button" disabled>
-              В бой · оборона
-            </button>
-            <label for="nickname">Твой ник</label>
+            <div class="nickname-heading">
+              <label for="nickname">Твой ник</label>
+              <span>Так тебя увидят другие</span>
+            </div>
             <input
               id="nickname"
               name="nickname"
               maxlength="20"
-              required
               autocomplete="nickname"
-              placeholder="Например, Pilot"
+              placeholder="Игрок"
+              aria-describedby="entry-help"
             />
-            <button id="join" type="submit">
-              Создать комнату <span aria-hidden="true">↗</span>
-            </button>
+            <div id="invitation-notice" hidden>
+              <span class="entry-tag">ПРИГЛАШЕНИЕ</span>
+              <p>Тебя ждут в комнате <strong id="invited-room"></strong>.</p>
+              <small
+                >Карту и режим уже выбрал хозяин. После входа сможешь выбрать
+                класс.</small
+              >
+            </div>
+            <div id="quick-start-options">
+              <button
+                id="mission-play"
+                class="entry-primary entry-mission"
+                type="button"
+                disabled
+              >
+                <span class="entry-action-label">Последний рейс</span>
+                <span class="entry-action-note"
+                  >Сюжетная операция · до 4 друзей · Bastion</span
+                >
+              </button>
+              <button
+                id="control-play"
+                class="entry-primary entry-control"
+                type="button"
+                disabled
+              >
+                <span class="entry-action-label">Захватить точку</span>
+                <span class="entry-action-note"
+                  >Bastion · Ты + 2 союзника · удержание точки</span
+                >
+              </button>
+              <button
+                id="coop-play"
+                class="entry-primary"
+                type="button"
+                disabled
+                aria-describedby="entry-help"
+              >
+                <span class="entry-action-label"
+                  >Играть с отрядом <span aria-hidden="true">→</span></span
+                >
+                <span class="entry-action-note"
+                  >Ты + 2 союзных бота · против волн врагов</span
+                >
+              </button>
+              <p id="entry-help">
+                Spillway · обычная сложность · штурмовик на старте
+              </p>
+            </div>
+            <div class="entry-secondary">
+              <div id="solo-start-option">
+                <button id="quick-play" type="button" disabled>
+                  Играть одному
+                </button>
+                <small>Те же волны, без союзников</small>
+              </div>
+              <div>
+                <button id="join" type="submit">Создать комнату</button>
+                <small id="custom-room-note">Своя карта, режим и класс</small>
+              </div>
+            </div>
+            <details id="friend-entry" class="entry-disclosure">
+              <summary>Есть приглашение от друга?</summary>
+              <label for="friend-link">Ссылка или код комнаты</label>
+              <div class="friend-entry-row">
+                <input
+                  id="friend-link"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Вставь приглашение"
+                  aria-describedby="friend-error"
+                />
+                <button id="join-friend" type="button">Войти</button>
+              </div>
+              <p id="friend-error" role="alert"></p>
+            </details>
+            <a id="new-room-link" href="/" hidden>Начать свою игру</a>
           </form>
           <div id="session" hidden>
-            <label for="weapon-select">Класс / оружие</label>
+            <label for="weapon-select">Роль в команде</label>
             <select id="weapon-select">
-              <option value="rifle">Штурмовик · Автомат</option>
-              <option value="sniper">Снайпер · Снайперка</option>
-              <option value="shotgun">Тяжёлый боец · Дробовик</option>
+              <option value="rifle">Штурмовик · Штурм позиций</option>
               <option value="smg">Разведчик · ПП «Вектор»</option>
-              <option value="revolver">Стрелок · Револьвер</option>
+              <option value="sniper">Снайпер · Дальний бой</option>
               <option value="lmg">Пулемётчик · Пулемёт «Титан»</option>
+              <option value="sapper">Инженер · Карабин и мины</option>
             </select>
+            <div id="assault-loadout-row">
+              <label for="assault-loadout">Оружие штурмовика</label>
+              <select id="assault-loadout">
+                <option value="rifle">Автомат · Средняя дистанция</option>
+                <option value="shotgun">Дробовик · Ближний бой</option>
+              </select>
+            </div>
             <section
               id="class-card"
               aria-labelledby="class-name"
@@ -87,18 +174,28 @@
             </section>
             <label for="map-select">Карта</label>
             <select id="map-select">
-              <option value="bastion">Bastion · городской квартал</option>
+              <option value="spillway">Spillway · водосброс и коллектор</option>
+              <option value="bastion">
+                Bastion · депо и надземная галерея
+              </option>
               <option value="sandgate">
                 Sandgate · пустынный квартал A / B
               </option>
               <option value="switchyard">Switchyard · полигон и паркур</option>
             </select>
             <p id="map-description"></p>
+            <button id="map-preview" class="secondary" type="button">
+              Обзор карты
+            </button>
             <label for="mode-select">Режим игры</label>
             <select id="mode-select">
+              <option value="mission">Сюжет · Последний рейс</option>
               <option value="arena">Арена · с друзьями</option>
               <option value="training">Полигон · испытание на 30 секунд</option>
-              <option value="waves">Волны · оборона с ботами</option>
+              <option value="waves">Отряд · против волн ботов</option>
+              <option value="control">
+                Отряд · удержание точки на Bastion
+              </option>
               <option value="bots">Боты · свободный бой</option>
               <option value="parkour">Паркур · гонка на время</option>
             </select>
@@ -121,6 +218,11 @@
               </select>
             </div>
             <div id="ally-settings" hidden>
+              <p id="squad-summary" aria-live="polite"></p>
+              <small
+                >Друзья по ссылке играют за тебя. Дружественный огонь выключен.
+                Союзные боты занимают свободные места.</small
+              >
               <label for="ally-count">Союзные боты</label>
               <select id="ally-count">
                 <option value="0">Без союзников</option>
@@ -172,6 +274,20 @@
               step="1"
               value="35"
             />
+            <label class="sensitivity-label" for="graphics-quality"
+              >Качество графики</label
+            >
+            <select id="graphics-quality">
+              <option value="auto">Авто · под возможности компьютера</option>
+              <option value="low">Низкое · максимум FPS</option>
+              <option value="medium">Среднее · чёткая картинка</option>
+              <option value="high">Высокое · тени и высокое разрешение</option>
+            </select>
+            <small class="graphics-quality-note"
+              >«Авто» снижает разрешение при устойчивых просадках FPS. Низкое
+              качество меняет только тени, разрешение и мелкую отделку, но не
+              укрытия и маршруты.</small
+            >
             <label class="sensitivity-label" for="sensitivity"
               >Чувствительность мыши
               <output id="sensitivity-value">2.0</output></label
@@ -186,15 +302,44 @@
             />
           </div>
           <p id="message" role="status"></p>
-          <p class="stage-note">
-            WASD · движение. Мышь · обзор. Space · прыжок. Shift / Ctrl / C ·
-            приседание и скольжение на бегу. Прыгай из скольжения, чтобы
-            сохранить скорость. ЛКМ · огонь. ПКМ / Q · прицел. R · перезарядка.
-            1 / 2 / E · сменить оружие. V · нож. Tab · счёт. F · новая попытка
-            испытания. M · миникарта. Esc · меню. Арена начинается с двух
-            игроков. Для волн и боя с ботами достаточно одного.
-          </p>
+          <details class="controls-guide entry-disclosure">
+            <summary>Как играть <span>Клавиатура и мышь</span></summary>
+            <div class="controls-quick-reference">
+              <p><kbd>W A S D</kbd> Движение</p>
+              <p><kbd>Мышь</kbd> Обзор и стрельба</p>
+              <p><kbd>Space</kbd> Прыжок</p>
+              <p><kbd>R</kbd> Перезарядка</p>
+              <p><kbd>V / 3</kbd> Взять нож, ЛКМ ударить</p>
+              <p><kbd>G</kbd> Мина инженера</p>
+              <p><kbd>Z</kbd> Отряд за мной</p>
+              <p><kbd>X</kbd> Держать место под прицелом</p>
+              <p><kbd>T</kbd> Отряд к точке A</p>
+              <p><kbd>B</kbd> Бросить гранату</p>
+              <p><kbd>Esc</kbd> Меню и приглашение друзей</p>
+            </div>
+            <p class="stage-note">
+              WASD · движение. Мышь · обзор. Space · прыжок. Shift / Ctrl / C ·
+              приседание и скольжение на бегу. Прыгай из скольжения, чтобы
+              сохранить скорость. ЛКМ · огонь. ПКМ / Q · прицел. R ·
+              перезарядка. 1 / 2 / E · сменить оружие. V / 3 · взять нож, ЛКМ ·
+              удар. G · мина инженера. B · граната. Tab · счёт. F · новая
+              попытка испытания. M · миникарта. Esc · меню. Арена начинается с
+              двух игроков. Для волн и боя с ботами достаточно одного.
+            </p>
+          </details>
         </section>
+        <aside class="landing-map" aria-label="Карта быстрого старта">
+          <span class="entry-tag">КАРТА БЫСТРОГО СТАРТА / 01</span>
+          <h2>SPILLWAY</h2>
+          <p>Сухой водосброс</p>
+          <div class="map-features">
+            <span>Плотина</span><span>Мост</span><span>Подземные ходы</span>
+          </div>
+          <button id="landing-preview" type="button">
+            Осмотреть карту <span aria-hidden="true">↗</span>
+          </button>
+          <small>На фоне сама игра, не концепт-арт</small>
+        </aside>
         <aside class="roster" aria-label="Игроки в комнате">
           <div class="roster-heading">
             <h2>В комнате</h2>
@@ -205,8 +350,8 @@
         </aside>
       </main>
       <footer>
-        <span id="map-name">BASTION / ГОРОДСКОЙ КВАРТАЛ</span
-        ><span>DESKTOP · KEYBOARD & MOUSE</span>
+        <span id="map-name">SPILLWAY / СУХОЙ ВОДОСБРОС</span
+        ><span>До 4 друзей в обороне · до 8 игроков на арене</span>
       </footer>
       <div id="match-time" role="status"></div>
       <div id="network-banner" hidden role="status">
@@ -231,14 +376,61 @@
       </section>
       <div id="movement-hud" hidden>
         <div id="location-name"></div>
+        <section id="mission-hud" hidden aria-label="Сюжетная операция">
+          <span class="mission-eyebrow">ОПЕРАЦИЯ · ПОСЛЕДНИЙ РЕЙС</span>
+          <strong id="mission-title"></strong>
+          <span id="mission-task"></span>
+          <progress
+            id="mission-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс задания"
+          ></progress>
+          <span id="mission-status"></span>
+          <button id="restart-mission" type="button" hidden>
+            Повторить этап
+          </button>
+        </section>
+        <aside id="mission-radio" hidden aria-label="Радиосвязь">
+          <span>РАДИО · ДИСПЕТЧЕРСКАЯ</span>
+          <p id="mission-radio-text"></p>
+        </aside>
+        <div id="mission-cinema" hidden aria-hidden="true"></div>
+        <section id="control-hud" hidden aria-label="Удержание точки">
+          <strong id="control-score"></strong>
+          <span id="control-state"></span>
+          <progress
+            id="control-progress"
+            max="1"
+            value="0"
+            aria-label="Захват точки"
+          ></progress>
+        </section>
+        <div id="squad-command-hud" hidden>
+          <strong id="squad-order-state"></strong>
+          <span id="squad-order-help"></span>
+        </div>
         <section id="wave-hud" hidden aria-label="Оборона">
-          <div>
-            <span>ОПЕРАЦИЯ / ОБОРОНА</span
-            ><strong id="wave-number">ВОЛНА 1</strong>
+          <div class="wave-line">
+            <strong id="wave-number">ВОЛНА 1</strong>
+            <span class="wave-total">
+              <strong id="wave-enemy-count">0</strong><small>ОСТАЛОСЬ</small>
+            </span>
+            <span class="wave-count" title="Враги на поле">
+              <strong id="wave-active-count">0</strong><small>В БОЮ</small>
+            </span>
+            <span class="wave-count wave-reserve" title="Враги в резерве">
+              <strong id="wave-queued-count">0</strong><small>РЕЗЕРВ</small>
+            </span>
+            <div
+              id="wave-enemy-roster"
+              aria-label="Состав врагов на поле"
+            ></div>
           </div>
-          <p id="wave-state"></p>
+          <p id="wave-state" hidden></p>
+          <strong id="wave-defeated-count" hidden>0</strong>
           <div class="wave-progress"><i id="wave-progress-fill"></i></div>
-          <small id="wave-team"></small>
+          <small id="wave-team" hidden></small>
         </section>
         <div id="kill-confirm" hidden></div>
         <div id="damage-number" hidden></div>
@@ -255,7 +447,9 @@
             height="384"
             aria-label="План карты и направление взгляда"
           ></canvas
-          ><small>▲ ТЫ · <span>● ВЫСТРЕЛЫ</span> · ■ ПАТРОНЫ · M</small>
+          ><small
+            >▲ ТЫ · <span>● ВЫСТРЕЛЫ</span> · ■ ПАТРОНЫ · + ЗДОРОВЬЕ · M</small
+          >
         </section>
         <section id="solo-hud" hidden aria-label="Испытание">
           <strong id="solo-title"></strong><span id="solo-details"></span
@@ -269,7 +463,12 @@
         <div id="hurt" hidden></div>
         <div id="practice-hit" hidden role="status"></div>
         <div id="hitmarker" hidden>×</div>
-        <div id="kill-feed" aria-live="polite"></div>
+        <div
+          id="kill-feed"
+          role="log"
+          aria-live="polite"
+          aria-label="Протокол боя"
+        ></div>
         <div id="death-message" hidden></div>
         <div id="protection"></div>
         <div class="combat-readout">
@@ -281,7 +480,9 @@
         <div class="ammo-readout">
           <span class="hud-label">СНАРЯЖЕНИЕ</span><span id="weapon-name"></span
           ><small id="weapon-slots"></small><strong id="ammo"></strong
-          ><span id="ammo-reserve"></span>
+          ><span id="ammo-reserve"></span><small id="grenade-hud"></small
+          ><small id="health-kit-hud"></small
+          ><small id="mine-hud" hidden></small>
           <div class="reload-track"><i id="reload-fill"></i></div>
         </div>
         <div id="crosshair" class="crosshair" aria-hidden="true">+</div>

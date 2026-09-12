@@ -65,6 +65,23 @@ describe('arena over real WebSockets', () => {
     await expect.poll(() => second.state?.mapId).toBe('switchyard');
     await expect.poll(() => second.state?.mode).toBe('parkour');
   });
+  it('shares mission state with late teammates and rejects guest restart and mode changes', async () => {
+    const host = await join('Host');
+    await expect.poll(() => host.state?.players.size).toBe(1);
+    host.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'mission' });
+    host.send(CLIENT_MESSAGE, { type: 'ready', ready: true });
+    await expect.poll(() => host.state?.mission.stage).toBe('dispatch');
+    const guest = await join('Friend', host.roomId);
+    await expect.poll(() => guest.state?.mission.stage).toBe('dispatch');
+    expect(guest.state.mission.runId).toBe(host.state.mission.runId);
+    expect(guest.state.mapId).toBe('bastion');
+    guest.send(CLIENT_MESSAGE, { type: 'restartMission' });
+    guest.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'arena' });
+    await expect.poll(() => guest.state?.mode).toBe('mission');
+    host.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'control' });
+    await expect.poll(() => guest.state?.mission.stage).toBe('idle');
+    expect(guest.state.mission.carrierId).toBe('');
+  });
 
   it('exposes health without creating a room', async () => {
     const response = await fetch(`${endpoint}/health`);
@@ -72,6 +89,61 @@ describe('arena over real WebSockets', () => {
       status: 'ok',
       protocolVersion: PROTOCOL_VERSION,
     });
+  });
+  it('replicates control mode and the shared squad order to a late friend, then clears them', async () => {
+    const host = await join('Commander');
+    await expect.poll(() => host.state?.players.size).toBe(1);
+    host.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'control' });
+    host.send(CLIENT_MESSAGE, { type: 'ready', ready: true });
+    await expect.poll(() => host.state?.phase).toBe('active');
+    expect(host.state.mapId).toBe('bastion');
+    expect(host.state.allyCount).toBe(2);
+    host.send(CLIENT_MESSAGE, {
+      type: 'squadOrder',
+      kind: 'follow',
+      yaw: 0,
+      pitch: 0,
+    });
+    await expect.poll(() => host.state?.squadOrder.kind).toBe('follow');
+    const guest = await join('Friend', host.roomId);
+    await expect.poll(() => guest.state?.squadOrder.kind).toBe('follow');
+    expect(guest.state.squadOrder.commanderId).toBe(host.sessionId);
+    expect(guest.state.control.owner).toBe(host.state.control.owner);
+    guest.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'arena' });
+    await expect.poll(() => host.state?.mode).toBe('control');
+    host.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'arena' });
+    await expect.poll(() => guest.state?.mode).toBe('arena');
+    await expect.poll(() => guest.state?.squadOrder.kind).toBe('auto');
+    expect(guest.state.control.allyScore).toBe(0);
+  });
+  it('synchronizes sapper mines to a late squad member and clears them on map changes', async () => {
+    const host = await join('Engineer');
+    await expect.poll(() => host.state?.players.size).toBe(1);
+    host.send(CLIENT_MESSAGE, { type: 'setMap', mapId: 'bastion' });
+    host.send(CLIENT_MESSAGE, { type: 'setMode', mode: 'waves' });
+    host.send(CLIENT_MESSAGE, { type: 'setAllies', count: 2 });
+    host.send(CLIENT_MESSAGE, { type: 'selectWeapon', weapon: 'sapper' });
+    host.send(CLIENT_MESSAGE, { type: 'ready', ready: true });
+    await expect
+      .poll(() => host.state?.players.get(host.sessionId)?.grounded)
+      .toBe(true);
+    await expect.poll(() => host.state?.wave.status).toBe('preparing');
+    host.send(CLIENT_MESSAGE, { type: 'deployMine' });
+    await expect.poll(() => host.state?.mines.size).toBe(1);
+    const guest = await join('Friend', host.roomId);
+    await expect.poll(() => guest.state?.mines.size).toBe(1);
+    expect(guest.state.mines.values().next().value?.ownerId).toBe(
+      host.sessionId,
+    );
+    expect(
+      guest.state.players.get(host.sessionId)?.mineCooldown,
+    ).toBeGreaterThan(0);
+    expect(
+      [...guest.state.players.values()].filter((p) => p.ally),
+    ).toHaveLength(2);
+    host.send(CLIENT_MESSAGE, { type: 'setMap', mapId: 'sandgate' });
+    await expect.poll(() => guest.state?.mapId).toBe('sandgate');
+    await expect.poll(() => guest.state?.mines.size).toBe(0);
   });
   it('syncs two players, accepts valid intent and removes departed players', async () => {
     const first = await join('  Alice  ');

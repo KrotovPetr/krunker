@@ -1,0 +1,349 @@
+/* Landing-only layout. Room controls and the combat HUD keep their own styles. */
+#app:not(.in-room):not(.playing):not(.map-preview)::before {
+  background: linear-gradient(
+    90deg,
+    #10191dfc 0%,
+    #10191df5 30%,
+    #10191d85 55%,
+    #10191d14 100%
+  );
+}
+#app:not(.in-room) > header {
+  padding-top: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #d9e3df18;
+}
+#app:not(.in-room) .status {
+  background: #18272deb;
+  color: #c6d7d4;
+  border-color: #5b777b;
+}
+#app:not(.in-room) main {
+  align-items: center;
+  min-height: calc(100svh - 155px);
+  padding-top: 30px;
+  padding-bottom: 24px;
+  gap: 56px;
+}
+#app:not(.in-room) .panel {
+  max-width: 460px;
+}
+#app:not(.in-room) .eyebrow {
+  margin-bottom: 16px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+#app:not(.in-room) h1 {
+  font-size: clamp(34px, 3.9vw, 54px);
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -2px;
+  margin-bottom: 16px;
+}
+#app:not(.in-room) h1 span {
+  color: #edb17d;
+}
+#app:not(.in-room) .intro {
+  max-width: 400px;
+  font-size: 14px;
+  line-height: 1.55;
+  margin-bottom: 24px;
+  color: #b8c5c5;
+}
+.nickname-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nickname-heading label {
+  font-weight: 600;
+}
+.nickname-heading > span {
+  color: #8ea4a6;
+  font-size: 11px;
+}
+#join-form #nickname {
+  background: #142328;
+  border-color: #516065;
+  padding: 12px 14px;
+}
+#join-form .entry-primary {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 18px 20px;
+  background: #efb37e;
+  text-align: left;
+  border: 1px solid #ffd7ad;
+  box-shadow: 0 4px 18px #0003;
+}
+.entry-action-label {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 19px;
+  font-weight: 750;
+}
+.entry-action-note {
+  font-size: 12px;
+  font-weight: 500;
+  color: #3d3429;
+}
+#entry-help {
+  color: #a5b7b9;
+  font-size: 11px;
+  text-align: center;
+  margin: 10px 0 18px;
+}
+.entry-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.entry-secondary button {
+  width: 100%;
+  min-height: 47px;
+  padding: 12px 10px;
+  border: 1px solid #526569;
+  background: #1b2d32;
+  color: #e8eeeb;
+  font-size: 13px;
+  text-align: center;
+}
+.entry-secondary #join {
+  margin: 0;
+  text-align: center;
+}
+.entry-secondary small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #9dafb0;
+  text-align: center;
+  margin-top: 7px;
+}
+.entry-disclosure {
+  border-top: 1px solid #79909640;
+  margin-top: 20px;
+  font-size: 12px;
+  color: #bbc9cb;
+}
+.entry-disclosure summary {
+  cursor: pointer;
+  padding: 14px 0;
+}
+.entry-disclosure summary::marker {
+  color: #edb17d;
+}
+.entry-disclosure summary:focus-visible {
+  outline: 2px solid #ffdbb5;
+  outline-offset: 3px;
+}
+.friend-entry-row {
+  display: flex;
+  gap: 8px;
+}
+.friend-entry-row input {
+  font-size: 12px;
+}
+.friend-entry-row button {
+  padding: 12px 18px;
+}
+#friend-error {
+  color: #ffc0a6;
+  line-height: 1.5;
+}
+#friend-error:empty,
+#message:empty {
+  display: none;
+}
+#message:not(:empty) {
+  padding: 12px 14px;
+  border-left: 2px solid #edb17d;
+  background: #172628;
+}
+.controls-guide {
+  margin-top: 0;
+}
+.controls-guide summary > span {
+  float: right;
+  color: #8da4a7;
+  font-size: 11px;
+}
+.controls-quick-reference {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.controls-quick-reference p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.controls-quick-reference kbd {
+  display: block;
+  color: #efbc91;
+  font-size: 12px;
+}
+.controls-guide .stage-note {
+  margin-top: 16px;
+  padding-top: 12px;
+  font-size: 11px;
+}
+.landing-map {
+  width: 300px;
+  flex-shrink: 0;
+  align-self: flex-end;
+  padding: 22px;
+  margin-bottom: 26px;
+  border: 1px solid #d7e1d84a;
+  border-top: 2px solid #e9b581;
+  background: #111e23f2;
+  box-shadow: 0 12px 40px #0003;
+}
+.entry-tag {
+  font:
+    9px ui-monospace,
+    monospace;
+  color: #ecc095;
+  letter-spacing: 1.3px;
+}
+.landing-map h2 {
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: 2px;
+  margin-top: 12px;
+}
+.landing-map > p {
+  color: #bfccca;
+  font-size: 13px;
+  margin: 5px 0 18px;
+}
+.map-features {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.map-features span {
+  padding: 5px 7px;
+  background: #304347;
+  font-size: 10px;
+  color: #d2dcd6;
+}
+#landing-preview {
+  margin-top: 22px;
+  padding: 12px 0;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #ecc095;
+  border-top: 1px solid #68828766;
+  border-radius: 0;
+  font-size: 13px;
+}
+#landing-preview span {
+  float: right;
+}
+.landing-map > small {
+  display: block;
+  color: #8fa6aa;
+  font-size: 10px;
+}
+.in-room .landing-map,
+.invited .landing-map,
+#app:not(.in-room) .roster {
+  display: none;
+}
+#app:not(.in-room) footer {
+  padding-top: 12px;
+  padding-bottom: 18px;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+}
+#invitation-notice {
+  padding: 18px;
+  border-left: 2px solid #edb17d;
+  background: #213238;
+  margin: 20px 0;
+}
+#invitation-notice p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+#invited-room {
+  overflow-wrap: anywhere;
+}
+#invitation-notice small {
+  color: #b0c0c3;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.invited .entry-secondary {
+  grid-template-columns: 1fr;
+}
+.invited #join {
+  background: #efb37e;
+  color: #172020;
+  border-color: #ffd7ad;
+  font-size: 16px;
+}
+#new-room-link {
+  display: block;
+  margin: 20px 0;
+  font-size: 12px;
+  color: #d4c3af;
+}
+@media (max-width: 900px) {
+  #app:not(.in-room) main {
+    gap: 25px;
+  }
+  .landing-map {
+    width: 250px;
+    padding: 18px;
+  }
+}
+@media (max-width: 760px) {
+  #app:not(.in-room):not(.playing):not(.map-preview)::before {
+    background: linear-gradient(180deg, #10191df5, #10191deb 65%, #10191d99);
+  }
+  #app:not(.in-room) > header {
+    padding: 20px 6vw;
+  }
+  #app:not(.in-room) main {
+    align-items: center;
+    padding: 28px 6vw 20px;
+    min-height: auto;
+  }
+  #app:not(.in-room) .panel {
+    max-width: 460px;
+  }
+  .landing-map {
+    width: 100%;
+    max-width: 460px;
+    align-self: center;
+    margin: 0;
+  }
+  #app:not(.in-room) .brand {
+    font-size: 16px;
+  }
+  #app:not(.in-room) .brand span {
+    font-size: 8px;
+    letter-spacing: 0.6px;
+  }
+  #app:not(.in-room) .status {
+    font-size: 10px;
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+}
+#control-play {
+  background: #18343c;
+  color: #d4f0ee;
+  border: 1px solid #6a9da3;
+}
+#control-play .entry-action-note {
+  color: #b5d4d6;
+}

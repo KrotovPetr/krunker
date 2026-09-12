@@ -102,10 +102,10 @@ it('applies distinct head, torso, arm and leg multipliers', () => {
       crouched: false,
     };
     for (const [x, y, damage] of [
-      [0, 1.65, 200],
-      [0, 1.1, 100],
-      [0.31, 1.1, 75],
-      [0, 0.3, 65],
+      [0, 1.65, 170],
+      [0, 1.1, 85],
+      [0.31, 1.1, 63.75],
+      [0, 0.3, 55.25],
     ]) {
       const yaw = Math.atan2(-x!, 10),
         pitch = Math.atan2(y! - 1.65, Math.hypot(x!, 10));
