@@ -1,0 +1,27 @@
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	@game path /health /matchmake /matchmake/*
+	handle @game {
+		reverse_proxy server:2567
+	}
+
+	@socket header Upgrade websocket
+	handle @socket {
+		reverse_proxy server:2567
+	}
+
+	handle {
+		root * /srv
+		header Cache-Control "no-cache"
+		file_server
+	}
+}
+
+# Local probe works both before and after enabling a public HTTPS domain.
+http://:8080 {
+	bind 127.0.0.1
+	handle /health {
+		reverse_proxy server:2567
+	}
+}

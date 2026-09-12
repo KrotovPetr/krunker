@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx watch --include '../../packages/*/dist/**/*.js' src/index.ts",
     "build": "tsc -p tsconfig.json",

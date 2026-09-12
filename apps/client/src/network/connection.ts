@@ -9,6 +9,7 @@ import {
 import type { GameSnapshot, ServerEvent, ClientCommand } from '@fps/protocol';
 import { toSnapshot } from '@fps/protocol/schema';
 import type { ArenaState } from '@fps/protocol/schema';
+import { resolveServerEndpoint } from './endpoint.js';
 
 export interface ConnectionHandlers {
   snapshot(snapshot: GameSnapshot, sessionId: string): void;
@@ -24,9 +25,10 @@ export class Connection {
   private room: Room<ArenaState> | undefined;
 
   constructor(private handlers: ConnectionHandlers) {
-    const endpoint =
-      import.meta.env.VITE_SERVER_URL ||
-      `${location.protocol}//${location.hostname}:2567`;
+    const endpoint = resolveServerEndpoint(
+      import.meta.env.VITE_SERVER_URL,
+      location,
+    );
     this.client = new Client(endpoint);
   }
 

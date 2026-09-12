@@ -52,6 +52,12 @@
 
 Броня, закупка, инженер со снабжением и способность разведчика видеть врагов на радаре остаются идеями для отдельного режима.
 
+## Запуск на VM через Docker
+
+Подготовлены `Dockerfile` и `compose.yaml`: игровой сервер и Caddy со статическим клиентом. Node.js и pnpm устанавливаются внутри сборочного образа, на VM нужен только Docker с Compose. Первый запуск на Ubuntu: `bash scripts/setup-docker.sh` из клона репозитория. Мастер запросит подтверждение установки Docker и запуска игры.
+
+Если Docker уже установлен: `sudo docker compose build`, затем `sudo docker compose up -d --wait`. Полная инструкция, HTTPS и обновления: [DEPLOY_DOCKER.md](DEPLOY_DOCKER.md). Контейнерный запуск пока не проверен. Старый автодеплой через systemd нужно оставить выключенным при переходе на Docker.
+
 ## Локальный запуск
 
 Нужны Node.js из `.nvmrc` и pnpm из поля `packageManager` в `package.json`. Если команда pnpm отсутствует, включите её через `corepack enable pnpm`.
